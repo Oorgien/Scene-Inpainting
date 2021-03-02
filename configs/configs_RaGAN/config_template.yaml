@@ -1,0 +1,79 @@
+# Data dirs
+
+data_train: 'datasets/CelebAHQ/data256x256/train/'
+data_test: 'datasets/CelebAHQ/data256x256/test/'
+mask_train: 'datasets/Nvidia-masks/train_mask_dataset/'
+mask_test: 'datasets/Nvidia-masks/test_mask_dataset/'
+
+# Model setting
+
+model_name: 'RaGAN'
+
+# Training settings
+
+im_size: [3, 256, 256]
+workers: 24
+batch_size: 18
+epochs: 100
+start_epoch: 0
+gpu_id: 0
+learning_rate_D: 0.0002
+learning_rate_G: 0.0002
+adam_betas_D: [0.5, 0.9]
+adam_betas_G: [0.5, 0.9]
+checkpoint_interval: 1
+sample_interval: 100
+warmup_batches: 0
+debug: False
+freeze_epoch: None
+resume: ''
+parallel: False
+# adversarial mode: bce or l1
+adv_mode: 'l1'
+train_interval_D: 2
+vgg_path: 'downloaded_models/vgg16-397923af.pth'
+
+# Loss coefecients
+
+l1_coef: 1 
+guided_coef: 25
+fm_vgg_coef: 25
+fm_dis_coef: 5
+adv_G_coef: 0.03
+adv_D_coef: 1
+align_coef: 1
+
+# Logging
+
+model_name: 'model_1'
+checkpoint_dir: 'checkpoints_RaGAN/checkpoints_' # is followed by model_name
+eval_dir: 'eval_epochs'
+logger: 'logger.txt'
+logdir: 'runs'
+
+
+# Dataset
+# options: 'celeba-hq'
+dataset: 'celeba-hq'
+#options: 'nvidia'
+mask_dataset: 'nvidia'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

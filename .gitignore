@@ -1,0 +1,11 @@
+# Data
+datasets
+downloaded_models
+checkpoints
+runs
+eval_epochs
+
+# Trash
+.empty
+__pycache__
+.idea
