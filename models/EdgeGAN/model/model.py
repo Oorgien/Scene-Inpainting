@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
 import os
+import copy
 
 from . import blocks as B
-from base_model.base_blocks import DMFB, SelfAttention, _activation, get_pad
+from base_model.base_blocks import DMFB, SelfAttention, _activation, get_pad, conv_block, upconv_block
 
 
 class FineBottleneck(nn.Module):
@@ -31,9 +32,9 @@ class FineBottleneck(nn.Module):
         self.dmfb_seq = nn.Sequential(*dmfb_seq)
 
         self.out = nn.Sequential(
-            B.conv_block(3 * nf, nf, kernel_size=1, stride=1, padding=0,
+            conv_block(3 * nf, nf, kernel_size=1, stride=1, padding=0,
                          norm="in", activation="elu", pad_type="zero"),
-            B.conv_block(nf, nf, kernel_size=3, stride=1, padding=1,
+            conv_block(nf, nf, kernel_size=3, stride=1, padding=1,
                          norm="in", activation="elu", pad_type="zero")
         )
 
@@ -42,11 +43,13 @@ class FineBottleneck(nn.Module):
         dmfb_seq = self.dmfb_seq(x)
         attn = self.attention(x)
         out = self.out(torch.cat([res_seq, dmfb_seq, attn], dim=1))
+        # out = self.out(torch.cat([dmfb_seq, attn], dim=1))
         return out
 
 
 class InpaintingGenerator(nn.Module):
     def __init__(self, in_nc=4, out_nc=3, nf=48,
+                 norm="in", activation="relu",
                  res_blocks_num=8,
                  dmfb_block_num=4):
         """
@@ -59,21 +62,46 @@ class InpaintingGenerator(nn.Module):
         """
 
         super(InpaintingGenerator, self).__init__()
-        self.buffer = dict()
         # [4, 256, 256]
-        self.encoder = nn.ModuleList([
+        self.encoder_coarse = nn.ModuleList([
             # [48, 256, 256] -> decoder_6
-            B.RConv("encoder_1", self.buffer, in_nc, nf, kernel_size=5, stride=1, padding=2),
+            conv_block(in_nc, nf, kernel_size=5, stride=1, padding=2,
+                       norm=norm, activation=activation),
             # [96, 128, 128]
-            B.RConv("encoder_2", self.buffer, nf, nf * 2, kernel_size=3, stride=2, padding=1),
+            conv_block(nf, nf * 2, kernel_size=3, stride=2, padding=1,
+                       norm=norm, activation=activation),
             # [96, 128, 128] -> decoder_4
-            B.RConv("encoder_3", self.buffer, nf * 2, nf * 2, kernel_size=3, stride=1, padding=1),
+            conv_block(nf * 2, nf * 2, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation),
             # [192, 64, 64]
-            B.RConv("encoder_4", self.buffer, nf * 2, nf * 4, kernel_size=3, stride=2, padding=1),
+            conv_block(nf * 2, nf * 4, kernel_size=3, stride=2, padding=1,
+                       norm=norm, activation=activation),
             # [192, 64, 64]
-            B.RConv("encoder_5", self.buffer, nf * 4, nf * 4, kernel_size=3, stride=1, padding=1),
+            conv_block(nf * 4, nf * 4, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation),
             # [192, 64, 64]
-            B.RConv("encoder_6", self.buffer, nf * 4, nf * 4, kernel_size=3, stride=1, padding=1)
+            conv_block(nf * 4, nf * 4, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation)
+        ])
+        self.encoder_fine = nn.ModuleList([
+            # [48, 256, 256] -> decoder_6
+            conv_block(in_nc, nf, kernel_size=5, stride=1, padding=2,
+                       norm=norm, activation=activation),
+            # [96, 128, 128]
+            conv_block(nf, nf * 2, kernel_size=3, stride=2, padding=1,
+                       norm=norm, activation=activation),
+            # [96, 128, 128] -> decoder_4
+            conv_block(nf * 2, nf * 2, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation),
+            # [192, 64, 64]
+            conv_block(nf * 2, nf * 4, kernel_size=3, stride=2, padding=1,
+                       norm=norm, activation=activation),
+            # [192, 64, 64]
+            conv_block(nf * 4, nf * 4, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation),
+            # [192, 64, 64]
+            conv_block(nf * 4, nf * 4, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation)
         ])
 
         blocks = []
@@ -86,45 +114,95 @@ class InpaintingGenerator(nn.Module):
         self.fine = FineBottleneck(
             4 * nf, res_blocks_num, dmfb_block_num, attention_mode="self")
 
-        self.decoder = nn.ModuleList([
+        self.decoder_coarse = nn.ModuleList([
             # [192, 64, 64]
-            B.RConv("decoder_1", self.buffer,  nf * 4,  nf * 4, kernel_size=3, stride=1, padding=1),
+            conv_block(nf * 4,  nf * 4, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation),
             # [192, 64, 64]
-            B.RConv("decoder_2", self.buffer,  nf * 4,  nf * 4, kernel_size=3, stride=1, padding=1),
+            conv_block(nf * 4,  nf * 4, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation),
             # [96, 128, 128]
-            B.RDeConv("decoder_3", self.buffer, nf * 4, nf * 2, kernel_size=3, stride=2, padding=1, output_padding=1),
+            upconv_block(nf * 4, nf * 2, kernel_size=3, upconv_stride=2, padding=1,
+                         norm=norm, activation=activation),
             # [96, 128, 128]
-            B.RConv("decoder_4", self.buffer, nf * 4, nf * 2, kernel_size=3, stride=1, padding=1),
+            conv_block(nf * 4, nf * 2, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation),
             # [48, 256, 256]
-            B.RDeConv("decoder_5", self.buffer, nf * 2, nf, kernel_size=3, stride=2, padding=1, output_padding=1),
+            upconv_block(nf * 2, nf, kernel_size=3, upconv_stride=2, padding=1,
+                         norm=norm, activation=activation),
             # [48, 256, 256]
-            B.RConv("decoder_6", self.buffer, nf * 2, nf, kernel_size=3, stride=1, padding=1),
+            conv_block(nf * 2, nf, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation),
             # [24, 256, 256]
-            B.RConv("decoder_7", self.buffer, nf, nf//2, kernel_size=3, stride=1, padding=1)
+            conv_block(nf, nf//2, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation)
+        ])
+        self.decoder_fine = nn.ModuleList([
+            # [192, 64, 64]
+            conv_block(nf * 4, nf * 4, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation),
+            # [192, 64, 64]
+            conv_block(nf * 4, nf * 4, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation),
+            # [96, 128, 128]
+            upconv_block(nf * 4, nf * 2, kernel_size=3, upconv_stride=2, padding=1,
+                         norm=norm, activation=activation),
+            # [96, 128, 128]
+            conv_block(nf * 4, nf * 2, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation),
+            # [48, 256, 256]
+            upconv_block(nf * 2, nf, kernel_size=3, upconv_stride=2, padding=1,
+                         norm=norm, activation=activation),
+            # [48, 256, 256]
+            conv_block(nf * 2, nf, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation),
+            # [24, 256, 256]
+            conv_block(nf, nf // 2, kernel_size=3, stride=1, padding=1,
+                       norm=norm, activation=activation)
         ])
 
-        self.out = nn.Sequential(
-            B.conv_block(nf//2, out_nc, 3, stride=1, padding=1,
+        self.out_coarse = nn.Sequential(
+            conv_block(nf//2, out_nc, 3, stride=1, padding=1,
                          norm='none', activation='tanh')
         )
+        self.out_fine = nn.Sequential(
+            conv_block(nf // 2, out_nc, 3, stride=1, padding=1,
+                       norm='none', activation='tanh')
+        )
 
-    def forward(self, x, mode):
+    def forward_coarse(self, x):
+        # Coarse root
         encoder_states = {}
-        for i, layer in enumerate(self.encoder):
-            x = layer(x, mode)
+        for i, layer in enumerate(self.encoder_coarse):
+            x = layer(x)
             if i == 0 or i == 2:
-                encoder_states[f"encoder_{i+1}"] = x
+                encoder_states[f"encoder_{i + 1}"] = x
 
-        if mode == "coarse":
-            x = self.coarse(x)
-        elif mode == "fine":
-            x = self.fine(x)
+        x = self.coarse(x)
 
-        for i, layer in enumerate(self.decoder):
+        for i, layer in enumerate(self.decoder_coarse):
             if (i == 5 or i == 3) and 6-i >= 0:
                 x = torch.cat([encoder_states[f"encoder_{6-i}"], x], dim=1)
-            x = layer(x, mode)
-        x = self.out(x)
+            x = layer(x)
+        x = self.out_coarse(x)
+        return x
+
+    def forward_fine(self, x):
+        # Fine
+        encoder_states = {}
+        for i, layer in enumerate(self.encoder_fine):
+            x = layer(x)
+            if i == 0 or i == 2:
+                encoder_states[f"encoder_{i + 1}"] = x
+
+        x = self.fine(x)
+
+        for i, layer in enumerate(self.decoder_fine):
+            if (i == 5 or i == 3) and 6 - i >= 0:
+                x = torch.cat([encoder_states[f"encoder_{6 - i}"], x], dim=1)
+            x = layer(x)
+        x = self.out_fine(x)
+
         return x
 
 

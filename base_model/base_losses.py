@@ -171,12 +171,14 @@ class RelativisticAdvLoss(nn.Module):
 
         if model == 'discriminator':
             if self.mode == "bce":
+                # log (p(D_real)) + log (1 - p(D_fake))
                 L_adv = self.BCEloss(D_real, ones) + self.BCEloss(D_fake, zeros)
             elif self.mode == "l1":
                 L_adv = torch.mean(torch.abs(D_real - ones) + torch.abs(D_fake))
 
         elif model == 'generator':
             if self.mode == "bce":
+                # log (p(D_fake)) + log (1 - p(D_real))
                 L_adv = self.BCEloss(D_fake, ones) + self.BCEloss(D_real, zeros)
             elif self.mode == "l1":
                 L_adv = torch.mean(torch.abs(D_fake - ones) + torch.abs(D_real))

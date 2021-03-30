@@ -6,8 +6,7 @@ import torch.utils.data
 import torch.utils.data.distributed
 from torch.nn import functional as F
 
-from base_model.base_blocks import _norm, _activation, _padding, conv_block, conv_layer
-
+from base_model.base_blocks import _norm, _activation, _padding, conv_block
 
 class RConv(nn.Module):
     def __init__(self, layer, buffer, in_channels, out_channels, kernel_size, stride=1, dilation=1, groups=1,
@@ -15,9 +14,8 @@ class RConv(nn.Module):
         super(RConv, self).__init__()
         self.buffer = buffer
         self.layer = layer
-        self.conv_1 = conv_block(in_channels, out_channels, kernel_size, stride, dilation, groups,
+        self.conv = conv_block(in_channels, out_channels, kernel_size, stride, dilation, groups,
                                  bias, padding, "none", "none", pad_type)
-        self.conv_2 = conv_layer(out_channels, out_channels, kernel_size, stride=1, dilation=1, groups=1)
         self.fusion = conv_block(out_channels*2, out_channels, kernel_size=1, norm=norm,
                                  activation=activation)
         self.bn_act = nn.Sequential(
@@ -27,18 +25,16 @@ class RConv(nn.Module):
 
     def forward(self, x, mode):
         if mode == "coarse":
-            x = self.conv_1(x)
+            x = self.conv(x)
             x = self.bn_act(x)
             self.buffer[self.layer] = x
         elif mode == "fine":
-            c1 = self.conv_1(x)
-            c2 = self.conv_2(self.buffer[self.layer])
+            c1 = self.conv(x)
+            c2 = self.buffer[self.layer]
             x = torch.cat([c1, c2], dim=1)
             x = self.fusion(x)
         else:
             raise NotImplementedError('Generator mode [{:s}] is not found'.format(mode))
-        # x = self.conv_1(x)
-        # x = self.bn_act(x)
         return x
 
 

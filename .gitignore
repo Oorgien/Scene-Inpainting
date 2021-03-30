@@ -4,6 +4,7 @@ downloaded_models
 checkpoints
 runs
 eval_epochs
+playground
 
 # Trash
 .empty

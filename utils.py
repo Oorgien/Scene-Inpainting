@@ -9,6 +9,7 @@ from easydict import EasyDict as edict
 
 from models.RaGAN import train as ragan_train  # test as ragan_test
 from models.FineEdgeGAN import trainer as fine_train
+from models.EdgeGAN import trainer as edge_train
 
 
 def show(img):
@@ -39,6 +40,17 @@ def train(args,
     elif args.model_name == "FineEdgeGAN":
 
         trainer = fine_train.FineEdgeGanTrainer(
+            args,
+            train_data_dataset,
+            train_mask_dataset,
+            test_data_dataset,
+            test_mask_dataset)
+
+        trainer.train()
+
+    elif args.model_name == "EdgeGAN":
+
+        trainer = edge_train.EdgeGanTrainer(
             args,
             train_data_dataset,
             train_mask_dataset,

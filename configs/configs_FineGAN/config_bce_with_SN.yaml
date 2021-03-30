@@ -13,7 +13,7 @@ model_name: 'FineEdgeGAN'
 
 im_size: [3, 256, 256]
 workers: 24
-batch_size: 14
+batch_size: 10
 epochs: 100
 start_epoch: 0
 gpu_id: 0
@@ -28,7 +28,7 @@ sample_interval: 50
 warmup_batches: 5400
 debug: False
 freeze_epoch: None
-resume: 'checkpoints/checkpoints_FineGAN/checkpoints_model_fine_bce_test/checkpoint.pth.tar'
+resume:  ''  #'checkpoints/checkpoints_FineGAN/checkpoints_model_fine_bce_test/checkpoint.pth.tar'
 parallel: False
 # adversarial mode: bce or l1
 adv_mode: 'bce'
@@ -41,15 +41,15 @@ vgg_path: 'downloaded_models/vgg16-397923af.pth'
 # Loss coefecients
 
 l1_coef: 1 
-freq_coef: 1
-content_coef: 1
-style_coef: 1
-adv_G_coef: 1
-fm_coef: 1
+freq_coef: 0
+content_coef: 0
+style_coef: 0
+adv_G_coef: 0
+fm_coef: 0
 
 # Logging
 
-model_log_name: 'model_fine_bce_test'
+model_log_name: 'model_with_SN_l1'
 checkpoint_dir: 'checkpoints/checkpoints_FineGAN/checkpoints_' # is followed by model_log_name
 eval_dir: 'eval_epochs'
 logger: 'logger.txt'

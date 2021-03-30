@@ -28,7 +28,7 @@ sample_interval: 50
 warmup_batches: 5400
 debug: False
 freeze_epoch: None
-resume: 'checkpoints/checkpoints_FineGAN/checkpoints_model_fine_bce_test/checkpoint.pth.tar'
+resume: '' #'checkpoints/checkpoints_FineGAN/checkpoints_model_fine_bce_test/checkpoint.pth.tar'
 parallel: False
 # adversarial mode: bce or l1
 adv_mode: 'bce'
@@ -49,7 +49,7 @@ fm_coef: 1
 
 # Logging
 
-model_log_name: 'model_fine_bce_test'
+model_log_name: 'model_without_ssim_and_SN'
 checkpoint_dir: 'checkpoints/checkpoints_FineGAN/checkpoints_' # is followed by model_log_name
 eval_dir: 'eval_epochs'
 logger: 'logger.txt'

@@ -29,13 +29,14 @@ warmup_batches: 5400
 debug: False
 freeze_epoch: None
 # checkpoints/checkpoints_FineGAN/checkpoints_model_fine_gan/checkpoint.pth.tar
-resume: ''
+resume: 'checkpoints/checkpoints_FineGAN/checkpoints_model_fine_gan/checkpoint.pth.tar'
 parallel: False
 # adversarial mode: bce or l1
 adv_mode: 'bce'
 num_layers_fm: 5
 num_layers_vgg: 4
 train_interval_D: 2
+init_weights: 'kaiming'
 vgg_path: 'downloaded_models/vgg16-397923af.pth'
 
 # Loss coefecients

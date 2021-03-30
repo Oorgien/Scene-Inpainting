@@ -58,7 +58,7 @@ class trainer():
 
     def init_logger(self):
         self.writer = SummaryWriter(
-            log_dir=os.path.join(self.logdir, self.model_log_name) if self.logdir != '' else None)
+             log_dir=os.path.join(self.logdir, self.model_log_name) if self.logdir != '' else None)
 
     def set_to_train(self):
         self.model_G.train()
@@ -173,6 +173,7 @@ class trainer():
         self.init_data_loader()
         self.init_mask_loader()
         self.init_logger()
+
         if self.resume:
             self.resume_training()
         with tqdm(desc="Epoch", total=self.epochs) as progress:
@@ -212,8 +213,8 @@ class trainer():
         self.set_to_train()
         with tqdm(desc="Batch", total=len(self.train_data_loader)) as progress:
             for i, (image, mask) in enumerate(zip(self.train_data_loader, self.train_mask_loader)):
-
-                self.train_batch(i, epoch, image, mask, generator_loss, discriminator_loss)
+                with torch.autograd.detect_anomaly():
+                    self.train_batch(i, epoch, image, mask, generator_loss, discriminator_loss)
                 progress.update(1)
 
         return generator_loss, discriminator_loss

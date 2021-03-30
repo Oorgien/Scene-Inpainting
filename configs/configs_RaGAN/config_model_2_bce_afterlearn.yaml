@@ -28,7 +28,7 @@ sample_interval: 50
 warmup_batches: 0
 debug: False
 freeze_epoch: None
-resume: 'checkpoints_RaGAN/checkpoints_model_2_bce_best/checkpoint.pth.tar'
+resume: 'checkpoints/checkpoints_RaGAN/checkpoints_model_2_bce_best/checkpoint.pth.tar'
 parallel: False
 # adversarial mode: bce or l1
 adv_mode: 'l1'

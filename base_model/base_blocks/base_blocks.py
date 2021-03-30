@@ -97,3 +97,21 @@ class conv_block(nn.Module):
         if self.activation:
             x = self.activation(x)
         return x
+
+
+class upconv_block(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, upconv_stride=2, padding=0,
+                 bias=True, pad_type='zero', norm='none', activation='relu'):
+        super(upconv_block, self).__init__()
+
+        self.deconv = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=4, stride=upconv_stride, padding=1)
+        self.act = _activation('relu')
+        self.norm = _norm('in', out_channels)
+
+        self.conv = conv_block(out_channels, out_channels, kernel_size, stride, bias=bias,
+                               padding=padding, pad_type=pad_type, norm=norm, activation=activation)
+
+    def forward(self, x):
+        x = self.act(self.norm(self.deconv(x)))
+        x = self.conv(x)
+        return x

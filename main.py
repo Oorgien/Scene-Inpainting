@@ -13,7 +13,7 @@ from utils import get_config, train
 
 def main(args):
     if args.mode == 'train':
-        torch.autograd.set_detect_anomaly(True)
+        # torch.autograd.set_detect_anomaly(True)
         torch.cuda.empty_cache()
         args.best_test_loss = np.inf
         args.logger_fname = os.path.join(args.checkpoint_dir + args.model_log_name, args.logger)
