@@ -1,27 +1,28 @@
 import argparse
-import numpy as np
-import random
 import os
-import cv2
+import random
 import shutil
 import time
-from easydict import EasyDict as edict
 
-from tqdm import tqdm
-from PIL import Image
-from sklearn.model_selection import train_test_split
-
+import cv2
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim
 import torch.utils.data
+import torchvision.transforms as transforms
+from easydict import EasyDict as edict
+from PIL import Image
+from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
-import torchvision.transforms as transforms
+from tqdm import tqdm
 
+from base_model import RelativisticAdvLoss, trainer
 
-from base_model import trainer, RelativisticAdvLoss
-from .model import InpaintingGenerator, InpaintingDiscriminator, FineEdgeLoss, FmLoss
+from .model import (FineEdgeLoss, FmLoss, InpaintingDiscriminator,
+                    InpaintingGenerator)
+
 
 class EdgeGanTrainer(trainer):
     def __init__(self, args,
@@ -30,10 +31,10 @@ class EdgeGanTrainer(trainer):
                  test_data_dataset,
                  test_mask_dataset):
         super(EdgeGanTrainer, self).__init__(args,
-                                                 train_data_dataset,
-                                                 train_mask_dataset,
-                                                 test_data_dataset,
-                                                 test_mask_dataset)
+                                             train_data_dataset,
+                                             train_mask_dataset,
+                                             test_data_dataset,
+                                             test_mask_dataset)
 
     def init_model(self):
         self.model_G = InpaintingGenerator().to(self.device)
@@ -73,7 +74,11 @@ class EdgeGanTrainer(trainer):
     def train_batch(self, i, epoch, image, mask, generator_loss, discriminator_loss):
         if (image.shape[0] != mask.shape[0]):
             mask = mask[:image.shape[0]]
-
+        # print("variance", torch.var(image, dim=(2,3)),
+        #       "mean", torch.mean(image, dim=(2,3)),
+        #       "max", image.max(3, True)[0].max(2, True)[0],
+        #       "min", image.min(3, True)[0].min(2, True)[0]
+        #       )
         # ------------------
         #  Train Generator
         # ------------------
@@ -145,7 +150,7 @@ class EdgeGanTrainer(trainer):
         counter = epoch * len(self.train_data_loader) + i
         self.writer.add_scalar('Generator train loss', loss_G, counter)
         self.writer.add_scalar('Generator train l1 loss', l1_loss, counter)
-        self.writer.add_scalar('Generator train frequency loss', freq_loss , counter)
+        self.writer.add_scalar('Generator train frequency loss', freq_loss, counter)
         self.writer.add_scalar('Generator train content loss', content_loss, counter)
         self.writer.add_scalar('Generator train style loss', style_loss, counter)
         self.writer.add_scalar('Generator train adv loss', adv_loss_G, counter)
@@ -174,6 +179,7 @@ class EdgeGanTrainer(trainer):
             self.writer.add_scalar('Discriminator train loss', loss_D, counter)
 
             discriminator_loss.append(loss_D.item())
+
 
     def eval_batch(self, i, epoch, image, mask, generator_loss, discriminator_loss):
         if (image.shape[0] != mask.shape[0]):

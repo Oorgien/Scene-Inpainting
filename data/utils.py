@@ -1,13 +1,15 @@
-import numpy as np
-import random
-import cv2
 import os
-from data.dataset import NvidiaMaskDataset, CelebaHQDataset
+import random
+
+import cv2
+import numpy as np
 from sklearn.model_selection import train_test_split
+
+from data.dataset import CelebaHQDataset, ImageNetDataset, NvidiaMaskDataset
 
 
 def subset_inds(dataset, ratio: float):
-    return random.choices(range(dataset), k=int(ratio*len(dataset)))
+    return random.choices(range(dataset), k=int(ratio * len(dataset)))
 
 
 def prepare_data(args):
@@ -19,15 +21,24 @@ def prepare_data(args):
     im_size = tuple(args.im_size[1:])
     if args.dataset == 'celeba-hq':
         train_data_dataset = CelebaHQDataset(im_size, args.data_train,
-                                      train_images, 'train', args.dataset)
+                                             train_images, 'train', args.dataset)
         test_data_dataset = CelebaHQDataset(im_size, args.data_test,
-                                     test_images, 'test', args.dataset)
+                                            test_images, 'test', args.dataset)
+    elif args.dataset == 'imagenet':
+        train_data_dataset = ImageNetDataset(
+            im_size, txt_files_dir = args.txt_files_dir, train_dir=args.data_train,
+            val_dir=args.data_val, test_dir=args.data_test, mode='train',
+            normalization=args.data_normalization)
+        test_data_dataset = ImageNetDataset(
+            im_size, txt_files_dir = args.txt_files_dir, train_dir=args.data_train,
+            val_dir=args.data_val, test_dir=args.data_test, mode='test',
+            normalization=args.data_normalization)
 
     # Mask dataset
     if args.mask_dataset == 'nvidia':
         train_mask_dataset = NvidiaMaskDataset(im_size, args.mask_train,
-                                     'train', args.mask_dataset, multichannel=False)
+                                               'train', multichannel=False)
         test_mask_dataset = NvidiaMaskDataset(im_size, args.mask_test,
-                                    'test', args.mask_dataset, multichannel=False)
+                                              'test', multichannel=False)
 
     return train_data_dataset, test_data_dataset, train_mask_dataset, test_mask_dataset

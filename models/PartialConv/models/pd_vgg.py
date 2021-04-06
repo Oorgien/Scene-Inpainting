@@ -2,7 +2,7 @@
 # BSD 3-Clause License
 #
 # Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
-#   
+#
 # Copyright (c) 2017, Soumith Chintala. All rights reserved.
 ###############################################################################
 '''
@@ -10,9 +10,10 @@ Code adapted from https://github.com/pytorch/vision/blob/master/torchvision/mode
 Introduced partial convolutoins based padding for convolutional layers
 '''
 
+import math
+
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
-import math
 
 from .partialconv2d import *
 
@@ -29,7 +30,7 @@ model_urls = {
     'pdvgg16_bn': '',
     'pdvgg19_bn': '',
     'pdvgg16': '',
-    'pdvgg19': '', 
+    'pdvgg19': '',
     'pdvgg11': '',
     'pdvgg13': '',
     'pdvgg11_bn': '',
@@ -96,8 +97,6 @@ def make_layers_pd(cfg, batch_norm=False):
                 layers += [conv2d, nn.ReLU(inplace=True)]
             in_channels = v
     return nn.Sequential(*layers)
-
-
 
 
 cfg = {

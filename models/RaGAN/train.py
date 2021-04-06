@@ -1,27 +1,29 @@
 import argparse
-import numpy as np
-import random
 import os
-import cv2
+import random
 import shutil
 import time
-from easydict import EasyDict as edict
 
-from tqdm import tqdm
-from PIL import Image
-from sklearn.model_selection import train_test_split
-
+import cv2
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim
 import torch.utils.data
+import torchvision.transforms as transforms
+from easydict import EasyDict as edict
+from PIL import Image
+from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
-import torchvision.transforms as transforms
+from tqdm import tqdm
 
-from models.RaGAN.utils import adjust_learning_rate, save_checkpoint, show, local_crop
-from models.RaGAN.model.model import InpaintingDiscriminator, InpaintingGenerator
-from models.RaGAN.model.loss import AdversarialLoss, RaGANLoss, FeatureMatchingLoss
+from models.RaGAN.model.loss import (AdversarialLoss, FeatureMatchingLoss,
+                                     RaGANLoss)
+from models.RaGAN.model.model import (InpaintingDiscriminator,
+                                      InpaintingGenerator)
+from models.RaGAN.utils import (adjust_learning_rate, local_crop,
+                                save_checkpoint, show)
 
 
 def train_epoch(args, train_data_loader, train_mask_loader, epoch, writer):
@@ -99,11 +101,11 @@ def train_epoch(args, train_data_loader, train_mask_loader, epoch, writer):
             fm_vgg_loss, fm_dis_loss = args.fm_loss(predicted, target, local_real, local_fake)
 
             loss_G = args.l1_coef * l1_loss + \
-                     args.guided_coef * self_guided_loss + \
-                     args.align_coef * align_loss + \
-                     args.adv_G_coef * adv_loss_G + \
-                     args.fm_vgg_coef * fm_vgg_loss + \
-                     args.fm_dis_coef * fm_dis_loss
+                args.guided_coef * self_guided_loss + \
+                args.align_coef * align_loss + \
+                args.adv_G_coef * adv_loss_G + \
+                args.fm_vgg_coef * fm_vgg_loss + \
+                args.fm_dis_coef * fm_dis_loss
 
             # Record loss
             generator_loss.append(loss_G.item())
@@ -191,11 +193,11 @@ def eval_epoch(args, test_data_loader, test_mask_loader, epoch, writer):
                 fm_vgg_loss, fm_dis_loss = args.fm_loss(predicted, target, local_real, local_fake)
 
                 loss_G = args.l1_coef * l1_loss + \
-                     args.guided_coef * self_guided_loss + \
-                     args.align_coef * align_loss + \
-                     args.adv_G_coef * adv_loss_G + \
-                     args.fm_vgg_coef * fm_vgg_loss + \
-                     args.fm_dis_coef * fm_dis_loss
+                    args.guided_coef * self_guided_loss + \
+                    args.align_coef * align_loss + \
+                    args.adv_G_coef * adv_loss_G + \
+                    args.fm_vgg_coef * fm_vgg_loss + \
+                    args.fm_dis_coef * fm_dis_loss
 
                 # Record loss
                 generator_loss.append(loss_G.item())
@@ -242,6 +244,7 @@ def eval_epoch(args, test_data_loader, test_mask_loader, epoch, writer):
                         t(m.cpu()).save(f'{os.path.join(args.eval_dir, args.model_log_name)}/eval_{epoch}/batch{i}_{k}_mask.jpg')
 
     return generator_loss, discriminator_loss
+
 
 def train(args,
           train_data_dataset,
@@ -308,14 +311,13 @@ def train(args,
                     test_mask_dataset, batch_size=args.batch_size, shuffle=False,
                     num_workers=args.workers, pin_memory=True)
 
-
             # train for one epoch
             generator_loss_train, discriminator_loss_train = train_epoch(args, train_data_loader,
-                                                                        train_mask_loader, epoch, writer)
+                                                                         train_mask_loader, epoch, writer)
 
             # evaluate on validation set
             generator_loss_test, discriminator_loss_test = eval_epoch(args, test_data_loader,
-                                                                        test_mask_loader, epoch, writer)
+                                                                      test_mask_loader, epoch, writer)
 
             # remember best avg_test_loss and save checkpoint
             is_best = np.mean(generator_loss_train) < args.best_test_loss
@@ -336,25 +338,25 @@ def train(args,
             # logging
             with open(args.logger_fname, "a") as log_file:
                 log_file.write('Epoch: [{0}][{1}/{2}]\t'
-                    'Time {time:.3f} \n'
-                    'Loss: Train generator - {train_loss_G:.4f} '
-                    'Train discriminator - {train_loss_D:.4f} '
-                    'Test generator - {test_loss_G:.4f} '
-                    'Test discriminator - {test_loss_D:.4f}\n'.format(
-                    epoch+1, i+1, args.epochs, time=time.time()-start,
-                    train_loss_G=np.mean(generator_loss_train),
-                    train_loss_D=np.mean(discriminator_loss_train),
-                    test_loss_G=np.mean(generator_loss_test),
-                    test_loss_D=np.mean(discriminator_loss_test)))
+                               'Time {time:.3f} \n'
+                               'Loss: Train generator - {train_loss_G:.4f} '
+                               'Train discriminator - {train_loss_D:.4f} '
+                               'Test generator - {test_loss_G:.4f} '
+                               'Test discriminator - {test_loss_D:.4f}\n'.format(
+                                   epoch + 1, i + 1, args.epochs, time=time.time() - start,
+                                   train_loss_G=np.mean(generator_loss_train),
+                                   train_loss_D=np.mean(discriminator_loss_train),
+                                   test_loss_G=np.mean(generator_loss_test),
+                                   test_loss_D=np.mean(discriminator_loss_test)))
 
             tqdm.write('Epoch: [{0}][{1}/{2}]\t'
                        'Time {time:.3f}\t'
                        'Loss: Train generator - {train_loss_G:.4f} '
-                        'Train discriminator - {train_loss_D:.4f} '
-                        'Test generator - {test_loss_G:.4f} '
-                        'Test discriminator - {test_loss_D:.4f}\n'.format(
-                        epoch+1, i+1, args.epochs, time=time.time()-start,
-                        train_loss_G=np.mean(generator_loss_train),
-                        train_loss_D=np.mean(discriminator_loss_train),
-                        test_loss_G=np.mean(generator_loss_test),
-                        test_loss_D=np.mean(discriminator_loss_test)))
+                       'Train discriminator - {train_loss_D:.4f} '
+                       'Test generator - {test_loss_G:.4f} '
+                       'Test discriminator - {test_loss_D:.4f}\n'.format(
+                           epoch + 1, i + 1, args.epochs, time=time.time() - start,
+                           train_loss_G=np.mean(generator_loss_train),
+                           train_loss_D=np.mean(discriminator_loss_train),
+                           test_loss_G=np.mean(generator_loss_test),
+                           test_loss_D=np.mean(discriminator_loss_test)))

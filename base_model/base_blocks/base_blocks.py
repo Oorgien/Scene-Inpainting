@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.parallel
@@ -5,12 +6,11 @@ import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
 from torch.nn import Parameter
-import numpy as np
 
 
 def get_pad(in_size, kernel_size, stride, dilation=1):
-    out_size = np.ceil(float(in_size)/stride)
-    return int(((out_size - 1) * stride + dilation*(kernel_size-1) + 1 - in_size)/2)
+    out_size = np.ceil(float(in_size) / stride)
+    return int(((out_size - 1) * stride + dilation * (kernel_size - 1) + 1 - in_size) / 2)
 
 
 def _norm(norm_type, channels):

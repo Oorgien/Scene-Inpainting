@@ -9,10 +9,10 @@
 
 import torch
 import torch.nn as nn
-
+import torch.utils.model_zoo as model_zoo
 from torch.autograd import Variable
 from torchvision import models
-import torch.utils.model_zoo as model_zoo
+
 
 def gram_matrix(input_tensor):
     """
@@ -25,11 +25,11 @@ def gram_matrix(input_tensor):
     (b, ch, h, w) = input_tensor.size()
     features = input_tensor.view(b, ch, w * h)
     features_t = features.transpose(1, 2)
-    
+
     # more efficient and formal way to avoid underflow for mixed precision training
     input = torch.zeros(b, ch, ch).type(features.type())
-    gram = torch.baddbmm(input, features, features_t, beta=0, alpha=1./(ch * h * w), out=None)
-    
+    gram = torch.baddbmm(input, features, features_t, beta=0, alpha=1. / (ch * h * w), out=None)
+
     # naive way to avoid underflow for mixed precision training
     # features = features / (ch * h)
     # gram = features.bmm(features_t) / w
@@ -39,10 +39,12 @@ def gram_matrix(input_tensor):
 
     return gram
 
+
 class PerceptualLoss(nn.Module):
     """
     Perceptual Loss Module
     """
+
     def __init__(self):
         """Init"""
         super().__init__()
@@ -89,7 +91,8 @@ class PerceptualLoss(nn.Module):
         y = self.normalize_batch(y)
         return self.l1_loss(x, y)
 
-def make_vgg16_layers(style_avg_pool = False):
+
+def make_vgg16_layers(style_avg_pool=False):
     """
     make_vgg16_layers
 
@@ -114,10 +117,12 @@ def make_vgg16_layers(style_avg_pool = False):
             in_channels = v
     return nn.Sequential(*layers)
 
+
 class VGG16Partial(nn.Module):
     """
     VGG16 partial model
     """
+
     def __init__(self, vgg_path='models/vgg16-397923af.pth', layer_num=3):
         """
         Init
@@ -226,6 +231,7 @@ class VGG16PartialLoss(PerceptualLoss):
     """
     VGG16 perceptual loss
     """
+
     def __init__(self, device, l1_alpha=5.0, perceptual_alpha=0.05, style_alpha=120,
                  smooth_alpha=0, feat_num=3, vgg_path='models/vgg16-397923af.pth'):
         """
@@ -281,7 +287,7 @@ class VGG16PartialLoss(PerceptualLoss):
             with torch.no_grad():
                 groundtruth = self.vgg16partial(yc)
             generated = self.vgg16partial(x)
-            
+
             # vgg loss: VGG content loss
             if self.vgg_weight > 0:
                 # for m in range(0, len(generated)):
@@ -292,7 +298,6 @@ class VGG16PartialLoss(PerceptualLoss):
                         self.vgg_weight * self.loss_fn(generated[m], gt_data)
                     )
 
-            
             # style loss: Gram matrix loss
             if self.style_weight > 0:
                 # for m in range(0, len(generated)):

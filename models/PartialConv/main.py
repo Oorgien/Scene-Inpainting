@@ -11,7 +11,7 @@
 #
 # Main Difference from the original file: add the networks using partial convolution based padding
 #
-# Network options using zero padding:               vgg16_bn, vgg19_bn, resnet50, resnet101, resnet152, ... 
+# Network options using zero padding:               vgg16_bn, vgg19_bn, resnet50, resnet101, resnet152, ...
 # Network options using partial conv based padding: pdvgg16_bn, pdvgg19_bn, pdresnet50, pdresnet101, pdresnet152, ...
 #
 # Contact: Guilin Liu (guilinl@nvidia.com)
@@ -25,27 +25,27 @@ import time
 import warnings
 
 import torch
-import torch.nn as nn
-import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
+import torch.nn as nn
+import torch.nn.parallel
 import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
-import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 # import torchvision.models as models
-import torchvision.models as models_baseline # networks with zero padding
-import models as models_partial # partial conv based padding 
+import torchvision.models as models_baseline  # networks with zero padding
+import torchvision.transforms as transforms
 
+import models as models_partial  # partial conv based padding
 
 model_baseline_names = sorted(name for name in models_baseline.__dict__
-    if name.islower() and not name.startswith("__")
-    and callable(models_baseline.__dict__[name]))
+                              if name.islower() and not name.startswith("__")
+                              and callable(models_baseline.__dict__[name]))
 
 model_partial_names = sorted(name for name in models_partial.__dict__
-    if name.islower() and not name.startswith("__")
-    and callable(models_partial.__dict__[name]))
+                             if name.islower() and not name.startswith("__")
+                             and callable(models_partial.__dict__[name]))
 
 model_names = model_baseline_names + model_partial_names
 
@@ -57,13 +57,13 @@ parser.add_argument('--data_train', metavar='DIRTRAIN',
                     help='path to training dataset')
 
 parser.add_argument('--data_val', metavar='DIRVAL',
-                    help='path to validation dataset')                    
+                    help='path to validation dataset')
 
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet50',
                     choices=model_names,
                     help='model architecture: ' +
-                        ' | '.join(model_names) +
-                        ' (default: resnet50)')
+                    ' | '.join(model_names) +
+                    ' (default: resnet50)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=100, type=int, metavar='N',
@@ -119,10 +119,9 @@ def main():
 
     with open(args.logger_fname, "a") as log_file:
         now = time.strftime("%c")
-        log_file.write('================ Training Loss (%s) ================\n' % now)    
+        log_file.write('================ Training Loss (%s) ================\n' % now)
         log_file.write('world size: %d\n' % args.world_size)
-		
-		
+
     if args.seed is not None:
         random.seed(args.seed)
         torch.manual_seed(args.seed)
@@ -159,12 +158,10 @@ def main():
             model = models_partial.__dict__[args.arch]()
         # model = models.__dict__[args.arch]()
 
-
     # logging
     with open(args.logger_fname, "a") as log_file:
         log_file.write('model created\n')
-		
-		
+
     if args.gpu is not None:
         model = model.cuda(args.gpu)
     elif args.distributed:
@@ -195,7 +192,7 @@ def main():
             best_prec1 = checkpoint['best_prec1']
 
             model.load_state_dict(checkpoint['state_dict'])
-            
+
             optimizer.load_state_dict(checkpoint['optimizer'])
             print("=> loaded checkpoint '{}' (epoch {})"
                   .format(args.resume, checkpoint['epoch']))
@@ -208,8 +205,8 @@ def main():
     # Data loading code
     # traindir = os.path.join(args.data, 'train')
     # valdir = os.path.join(args.data, 'val')
-    traindir = args.data_train #os.path.join(args.data, 'train')
-    valdir = args.data_val  #os.path.join(args.data, 'val')
+    traindir = args.data_train  # os.path.join(args.data, 'train')
+    valdir = args.data_val  # os.path.join(args.data, 'val')
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
@@ -245,11 +242,9 @@ def main():
     with open(args.logger_fname, "a") as log_file:
         log_file.write('training/val dataset created\n')
 
-
     if args.evaluate:
         validate(val_loader, model, criterion)
         return
-
 
     # logging
     with open(args.logger_fname, "a") as log_file:
@@ -274,9 +269,8 @@ def main():
             'arch': args.arch,
             'state_dict': model.state_dict(),
             'best_prec1': best_prec1,
-            'optimizer' : optimizer.state_dict(),
+            'optimizer': optimizer.state_dict(),
         }, is_best, foldername=checkpoint_dir, filename='checkpoint.pth.tar')
-
 
         if epoch >= 94:
             save_checkpoint({
@@ -284,8 +278,8 @@ def main():
                 'arch': args.arch,
                 'state_dict': model.state_dict(),
                 'best_prec1': best_prec1,
-                'optimizer' : optimizer.state_dict(),
-            }, False, foldername=checkpoint_dir, filename='epoch_'+str(epoch)+'_checkpoint.pth.tar')
+                'optimizer': optimizer.state_dict(),
+            }, False, foldername=checkpoint_dir, filename='epoch_' + str(epoch) + '_checkpoint.pth.tar')
 
 
 def train(train_loader, model, criterion, optimizer, epoch):
@@ -333,18 +327,18 @@ def train(train_loader, model, criterion, optimizer, epoch):
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})\n'.format(
-                   epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5))
+                      epoch, i, len(train_loader), batch_time=batch_time,
+                      data_time=data_time, loss=losses, top1=top1, top5=top5))
 
             with open(args.logger_fname, "a") as log_file:
                 log_file.write('Epoch: [{0}][{1}/{2}]\t'
-                    'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                    'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                    'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                    'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                    'Prec@5 {top5.val:.3f} ({top5.avg:.3f})\n'.format(
-                    epoch, i, len(train_loader), batch_time=batch_time,
-                    data_time=data_time, loss=losses, top1=top1, top5=top5))
+                               'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                               'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                               'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                               'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                               'Prec@5 {top5.val:.3f} ({top5.avg:.3f})\n'.format(
+                                   epoch, i, len(train_loader), batch_time=batch_time,
+                                   data_time=data_time, loss=losses, top1=top1, top5=top5))
 
 
 def validate(val_loader, model, criterion):
@@ -383,24 +377,24 @@ def validate(val_loader, model, criterion):
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                       'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                       'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                       i, len(val_loader), batch_time=batch_time, loss=losses,
-                       top1=top1, top5=top5))
+                          i, len(val_loader), batch_time=batch_time, loss=losses,
+                          top1=top1, top5=top5))
 
                 with open(args.logger_fname, "a") as log_file:
                     log_file.write('Test: [{0}/{1}]\t'
-                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                      'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                      'Prec@5 {top5.val:.3f} ({top5.avg:.3f})\n'.format(
-                       i, len(val_loader), batch_time=batch_time, loss=losses,
-                       top1=top1, top5=top5))
+                                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})\n'.format(
+                                       i, len(val_loader), batch_time=batch_time, loss=losses,
+                                       top1=top1, top5=top5))
 
         print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
 
         with open(args.logger_fname, "a") as final_log_file:
             final_log_file.write(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
-              .format(top1=top1, top5=top5))
+                                 .format(top1=top1, top5=top5))
 
     return top1.avg
 
@@ -413,6 +407,7 @@ def save_checkpoint(state, is_best, foldername='', filename='checkpoint.pth.tar'
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 

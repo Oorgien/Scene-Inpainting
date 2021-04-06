@@ -1,26 +1,24 @@
 import argparse
-import numpy as np
-import random
 import os
-import cv2
+import random
 import shutil
 import time
 
-from tqdm import tqdm
-from PIL import Image
-from sklearn.model_selection import train_test_split
-
+import cv2
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim
 import torch.utils.data
+import torchvision.transforms as transforms
+from models.loss import VGG16PartialLoss
+from models.partialconv2d import PartialConv2d
+from models.PartialUnet import PartialUnet
+from PIL import Image
+from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
-import torchvision.transforms as transforms
-
-from models.PartialUnet import PartialUnet
-from models.partialconv2d import PartialConv2d
-from models.loss import VGG16PartialLoss
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='PyTorch Inpainting train')
 parser.add_argument('--data_dir', metavar='DIRDATA',
@@ -55,8 +53,10 @@ if args.seed is not None:
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
+
 def subset_inds(dataset, ratio: float):
-    return random.choices(range(dataset), k=int(ratio*len(dataset)))
+    return random.choices(range(dataset), k=int(ratio * len(dataset)))
+
 
 class Dilate(object):
     """Dilate mask with given kernel.
@@ -78,6 +78,7 @@ class Dilate(object):
 
         return dilatation_dst
 
+
 class ImageDataset(Dataset):
     def __init__(self, image_dir, images_list, mode):
         self.image_dir = image_dir
@@ -89,7 +90,7 @@ class ImageDataset(Dataset):
 
     def load_sample(self, image_name):
         image_path = os.path.join(self.image_dir,
-                                image_name)
+                                  image_name)
         image = Image.open(image_path)
         # image.load()
         return image
@@ -132,7 +133,7 @@ class MaskDataset(Dataset):
 
     def load_sample(self, mask_name):
         mask_path = os.path.join(self.image_dir,
-                                mask_name)
+                                 mask_name)
         mask = np.asarray(Image.open(mask_path))
         if self.mode == 'train':
             mask = (mask < 153).astype(float)
@@ -235,8 +236,8 @@ def eval_epoch(test_data_loader, test_mask_loader, model, criterion, epoch, devi
                     if not os.path.isdir(f'eval_{epoch}'):
                         os.makedirs(f'eval_{epoch}')
                     t = transforms.ToPILImage()
-                    mean = torch.Tensor([0.485, 0.456, 0.406]).view(3,1,1)
-                    std = torch.Tensor([0.229, 0.224, 0.225]).view(3,1,1)
+                    mean = torch.Tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+                    std = torch.Tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
 
                     im = (output[0, :, :, :].cpu() * std + mean)
                     t(im).save(f'{args.eval_dir}eval_{epoch}/{i}_img.jpg')
@@ -288,17 +289,16 @@ def train(args,
                 test_mask_dataset, batch_size=args.batch_size, shuffle=False,
                 num_workers=args.workers, pin_memory=True)
 
-
             adjust_learning_rate(optimizer, epoch)
 
             # train for one epoch
             train_losses = train_epoch(train_data_loader, train_mask_loader,
-                                       model, criterion, optimizer, epoch+1, device, writer)
+                                       model, criterion, optimizer, epoch + 1, device, writer)
             avg_train_loss = np.mean(train_losses)
 
             # evaluate on validation set
             test_losses = eval_epoch(test_data_loader, test_mask_loader,
-                                     model, criterion, epoch+1, device, writer)
+                                     model, criterion, epoch + 1, device, writer)
             avg_test_loss = np.mean(test_losses)
 
             # remember best avg_test_loss and save checkpoint
@@ -314,20 +314,19 @@ def train(args,
 
             progress.update(1)
 
-
             # logging
             with open(args.logger_fname, "a") as log_file:
                 log_file.write('Epoch: [{0}][{1}/{2}]\t'
-                    'Time {time:.3f} \t'
-                    'Loss: train - {train_loss:.4f} test - {test_loss:.4f}\n'.format(
-                    epoch+1, i+1, args.epochs, time=time.time()-end,
-                    train_loss=avg_train_loss, test_loss=avg_test_loss))
+                               'Time {time:.3f} \t'
+                               'Loss: train - {train_loss:.4f} test - {test_loss:.4f}\n'.format(
+                                   epoch + 1, i + 1, args.epochs, time=time.time() - end,
+                                   train_loss=avg_train_loss, test_loss=avg_test_loss))
 
             tqdm.write('Epoch: [{0}][{1}/{2}]\t'
                        'Time {time:.3f}\t'
                        'Loss: train - {train_loss:.4f} test - {test_loss:.4f}'.format(
-                        epoch+1, i+1, args.epochs, time=time.time() - end,
-                        train_loss=avg_train_loss, test_loss=avg_test_loss))
+                           epoch + 1, i + 1, args.epochs, time=time.time() - end,
+                           train_loss=avg_train_loss, test_loss=avg_test_loss))
             # measure time
             end = time.time()
 
@@ -352,7 +351,6 @@ def main():
     with open(args.logger_fname, "a") as log_file:
         now = time.strftime("%c")
         log_file.write('================ Training Loss (%s) ================\n' % now)
-
 
     # prepare image dataset
     images_list = sorted(os.listdir(args.data_dir))
@@ -407,6 +405,7 @@ def main():
           criterion,
           optimizer,
           device)
+
 
 if __name__ == "__main__":
     main()

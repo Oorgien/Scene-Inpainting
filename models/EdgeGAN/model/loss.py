@@ -1,8 +1,9 @@
+import math
+
 import torch
 from torch import nn
 from torch.nn import functional as F
 
-import math
 from base_model import VGG16Features, gram_matrix
 from base_model.base_blocks import get_pad
 
@@ -25,11 +26,11 @@ class L1FrequencyLoss(nn.Module):
 
     def calc_gauss(self, kernel_size, sigma):
         X, Y = torch.meshgrid(torch.arange(-(kernel_size // 2), kernel_size // 2 + 1, 1),
-                                           torch.arange(-(kernel_size // 2), kernel_size // 2 + 1, 1))
-        gaussian_filter = torch.exp(-0.5 * (torch.pow(X, 2) + torch.pow(Y, 2))/math.pow(sigma, 2))\
-                          / (math.sqrt(2) * math.pow(sigma, 2) * math.pi)
+                              torch.arange(-(kernel_size // 2), kernel_size // 2 + 1, 1))
+        gaussian_filter = torch.exp(-0.5 * (torch.pow(X, 2) + torch.pow(Y, 2)) / math.pow(sigma, 2))\
+            / (math.sqrt(2) * math.pow(sigma, 2) * math.pi)
         gaussian_filter /= torch.sum(gaussian_filter)
-        return gaussian_filter.reshape(1,1,kernel_size,kernel_size).repeat(1,self.in_nc,1,1).to(self.device)
+        return gaussian_filter.reshape(1, 1, kernel_size, kernel_size).repeat(1, self.in_nc, 1, 1).to(self.device)
 
     def forward(self, predicted, target):
         im_size = predicted.shape[2:]
@@ -42,8 +43,8 @@ class L1FrequencyLoss(nn.Module):
         l1_coarse = self.l1_loss(coarse_pred, coarse_real)
         l1_fine = self.l1_loss(fine_pred, fine_real)
         return l1_coarse, l1_fine
-    
-    
+
+
 class VggLoss(nn.Module):
     def __init__(self, vgg_path, num_layers):
         super(VggLoss, self).__init__()
@@ -76,7 +77,7 @@ class VggLoss(nn.Module):
             num_elements = vgg_gt[i].shape[1] * vgg_gt[i].shape[2] * vgg_gt[i].shape[3]
             w = 1e3 / (vgg_gt[i].shape[1] ** 2)
 
-            loss = (w/num_elements) * F.l1_loss(vgg_pred[i], vgg_gt[i], reduction="sum")
+            loss = (w / num_elements) * F.l1_loss(vgg_pred[i], vgg_gt[i], reduction="sum")
             Content_loss += loss
 
         # Style loss
@@ -85,7 +86,7 @@ class VggLoss(nn.Module):
             num_elements = vgg_gt[i].shape[1] * vgg_gt[i].shape[2] * vgg_gt[i].shape[3]
             w = 1e3 / (vgg_gt[i].shape[1] ** 2)
 
-            loss = (w/num_elements) * F.l1_loss(gram_matrix(vgg_pred[i]), gram_matrix(vgg_gt[i]), reduction="sum")
+            loss = (w / num_elements) * F.l1_loss(gram_matrix(vgg_pred[i]), gram_matrix(vgg_gt[i]), reduction="sum")
             Style_loss += loss
 
         return Content_loss, Style_loss
@@ -112,7 +113,7 @@ class FmLoss(nn.Module):
 
         :return: loss value
         """
-        assert self.num_layers <= len(target) and self.num_layers >=0
+        assert self.num_layers <= len(target) and self.num_layers >= 0
 
         Loss_fm = 0
         for i in range(self.num_layers):
@@ -120,6 +121,7 @@ class FmLoss(nn.Module):
             w = 1e3 / (target[i].shape[1] ** 2)
             Loss_fm += (w / num_elements) * F.l1_loss(predicted[i], target[i], reduction='sum')
         return Loss_fm
+
 
 class FineEdgeLoss(nn.Module):
     def __init__(self, in_nc, kernel_size, sigma, device, vgg_path, num_layers):
@@ -142,7 +144,3 @@ class FineEdgeLoss(nn.Module):
         low_pass, high_pass = self.frequency_loss(predicted, target)
         content_loss, style_loss = self.vgg_loss(predicted, target)
         return l1_loss, low_pass, high_pass, content_loss, style_loss
-
-
-
-

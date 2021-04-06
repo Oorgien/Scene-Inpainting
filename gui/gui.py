@@ -1,14 +1,15 @@
-import matplotlib
-matplotlib.use('Agg')
-from tkinter import *
-from tkinter import filedialog
-from PIL import Image, ImageTk, ImageGrab, ImageDraw
-import io
-import os
-import copy
 from utils import get_config
 from models.RaGAN import test
+from PIL import Image, ImageDraw, ImageGrab, ImageTk
 import torchvision.transforms as transforms
+from tkinter import filedialog
+from tkinter import *
+import os
+import io
+import copy
+import matplotlib
+
+matplotlib.use('Agg')
 
 
 class App():
@@ -46,11 +47,11 @@ class App():
 
         # Button 1 - open image
         self.b1 = Button(self.root, text="Open image",
-                    width=10, height=2, command=self.open_img)
+                         width=10, height=2, command=self.open_img)
         self.b1.grid(row=1, column=1)
         # Button 2 - clear drawn mask
         self.b2 = Button(self.root, text="Clear mask",
-                    width=10, height=2, command=self.clear_mask)
+                         width=10, height=2, command=self.clear_mask)
         self.b2.grid(row=2, column=1)
 
         # Button 3 - Process inpainting
@@ -78,15 +79,15 @@ class App():
         :param event: - click of the mouse
         """
         thickness_val = self.brush_thickness.get()
-        self.canvas.create_oval(self.lastx-thickness_val,
-                                self.lasty-thickness_val,
-                                self.lastx+thickness_val,
-                                self.lasty+thickness_val,
+        self.canvas.create_oval(self.lastx - thickness_val,
+                                self.lasty - thickness_val,
+                                self.lastx + thickness_val,
+                                self.lasty + thickness_val,
                                 fill="white", outline='white')
-        self.drawing.ellipse([self.lastx-thickness_val,
-                              self.lasty-thickness_val,
-                              self.lastx+thickness_val,
-                              self.lasty+thickness_val],
+        self.drawing.ellipse([self.lastx - thickness_val,
+                              self.lasty - thickness_val,
+                              self.lastx + thickness_val,
+                              self.lasty + thickness_val],
                              fill=1, outline=1)
         self.savePosn(event)
 
@@ -153,8 +154,9 @@ class App():
         y1 = y + self.canvas.winfo_height()
         box = (x, y, x1, y1)
         # box = (0, 0, 500, 500)
-        ImageGrab.grab().crop((box)).save(os.path.join(self.image_dir,"mask_2.tiff"))
+        ImageGrab.grab().crop((box)).save(os.path.join(self.image_dir, "mask_2.tiff"))
         self.mask = Image.open(os.path.join(self.image_dir, 'mask_2.tiff'))
+
 
 if __name__ == "__main__":
     app = App()

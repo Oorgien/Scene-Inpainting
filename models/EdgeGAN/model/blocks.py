@@ -6,7 +6,8 @@ import torch.utils.data
 import torch.utils.data.distributed
 from torch.nn import functional as F
 
-from base_model.base_blocks import _norm, _activation, _padding, conv_block
+from base_model.base_blocks import _activation, _norm, _padding, conv_block
+
 
 class RConv(nn.Module):
     def __init__(self, layer, buffer, in_channels, out_channels, kernel_size, stride=1, dilation=1, groups=1,
@@ -15,8 +16,8 @@ class RConv(nn.Module):
         self.buffer = buffer
         self.layer = layer
         self.conv = conv_block(in_channels, out_channels, kernel_size, stride, dilation, groups,
-                                 bias, padding, "none", "none", pad_type)
-        self.fusion = conv_block(out_channels*2, out_channels, kernel_size=1, norm=norm,
+                               bias, padding, "none", "none", pad_type)
+        self.fusion = conv_block(out_channels * 2, out_channels, kernel_size=1, norm=norm,
                                  activation=activation)
         self.bn_act = nn.Sequential(
             nn.InstanceNorm2d(out_channels),
@@ -56,7 +57,7 @@ class ResConv(nn.Module):
 
     def forward(self, x):
         return x + self.conv(self.pad(x))
-    
+
 
 class RDeConv(nn.Module):
     def __init__(self, layer, buffer, in_channels, out_channels, kernel_size=3, stride=2, dilation=1, groups=1,
@@ -144,7 +145,7 @@ class SobelFilter(nn.Module):
 
             self.Y_filter = torch.tensor([
                 [47, 162, 47],
-                [0,  0,   0],
+                [0, 0, 0],
                 [-47, -162, -47]
             ], dtype=torch.float, device=device,
                 requires_grad=False).reshape(1, 1, 3, 3).repeat(filter_c, in_nc, 1, 1)
@@ -154,11 +155,3 @@ class SobelFilter(nn.Module):
         Y_grad = F.conv2d(x, self.Y_filter, stride=self.stride, padding=self.padding, dilation=self.dilation)
         out = torch.cat([X_grad, Y_grad], dim=1)
         return out
-
-
-
-
-
-
-
-

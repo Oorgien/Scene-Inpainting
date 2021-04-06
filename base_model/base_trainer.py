@@ -1,23 +1,22 @@
 import argparse
-import numpy as np
-import random
 import os
-import cv2
+import random
 import shutil
 import time
-from easydict import EasyDict as edict
 
-from tqdm import tqdm
-from PIL import Image
-from sklearn.model_selection import train_test_split
-
+import cv2
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim
 import torch.utils.data
+import torchvision.transforms as transforms
+from easydict import EasyDict as edict
+from PIL import Image
+from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
-import torchvision.transforms as transforms
+from tqdm import tqdm
 
 
 class trainer():
@@ -58,7 +57,7 @@ class trainer():
 
     def init_logger(self):
         self.writer = SummaryWriter(
-             log_dir=os.path.join(self.logdir, self.model_log_name) if self.logdir != '' else None)
+            log_dir=os.path.join(self.logdir, self.model_log_name) if self.logdir != '' else None)
 
     def set_to_train(self):
         self.model_G.train()
@@ -150,11 +149,11 @@ class trainer():
                            'Train discriminator - {train_loss_D:.4f} '
                            'Test generator - {test_loss_G:.4f} '
                            'Test discriminator - {test_loss_D:.4f}\n'.format(
-                epoch + 1, i + 1, self.epochs, time=time.time() - self.start,
-                train_loss_G=np.mean(generator_loss_train),
-                train_loss_D=np.mean(discriminator_loss_train),
-                test_loss_G=np.mean(generator_loss_test),
-                test_loss_D=np.mean(discriminator_loss_test)))
+                               epoch + 1, i + 1, self.epochs, time=time.time() - self.start,
+                               train_loss_G=np.mean(generator_loss_train),
+                               train_loss_D=np.mean(discriminator_loss_train),
+                               test_loss_G=np.mean(generator_loss_test),
+                               test_loss_D=np.mean(discriminator_loss_test)))
 
         tqdm.write('Epoch: [{0}][{1}/{2}]\t'
                    'Time {time:.3f}\t'
@@ -162,11 +161,11 @@ class trainer():
                    'Train discriminator - {train_loss_D:.4f} '
                    'Test generator - {test_loss_G:.4f} '
                    'Test discriminator - {test_loss_D:.4f}\n'.format(
-            epoch + 1, i + 1, self.epochs, time=time.time() - self.start,
-            train_loss_G=np.mean(generator_loss_train),
-            train_loss_D=np.mean(discriminator_loss_train),
-            test_loss_G=np.mean(generator_loss_test),
-            test_loss_D=np.mean(discriminator_loss_test)))
+                       epoch + 1, i + 1, self.epochs, time=time.time() - self.start,
+                       train_loss_G=np.mean(generator_loss_train),
+                       train_loss_D=np.mean(discriminator_loss_train),
+                       test_loss_G=np.mean(generator_loss_test),
+                       test_loss_D=np.mean(discriminator_loss_test)))
 
     def train(self):
         self.init_model()
@@ -213,8 +212,7 @@ class trainer():
         self.set_to_train()
         with tqdm(desc="Batch", total=len(self.train_data_loader)) as progress:
             for i, (image, mask) in enumerate(zip(self.train_data_loader, self.train_mask_loader)):
-                with torch.autograd.detect_anomaly():
-                    self.train_batch(i, epoch, image, mask, generator_loss, discriminator_loss)
+                self.train_batch(i, epoch, image, mask, generator_loss, discriminator_loss)
                 progress.update(1)
 
         return generator_loss, discriminator_loss
@@ -232,8 +230,8 @@ class trainer():
 
         return generator_loss, discriminator_loss
 
-    def train_batch(self, i,  epoch, image, mask, generator_loss, discriminator_loss):
+    def train_batch(self, i, epoch, image, mask, generator_loss, discriminator_loss):
         pass
 
-    def eval_batch(self, i,  epoch, image, mask, generator_loss, discriminator_loss):
+    def eval_batch(self, i, epoch, image, mask, generator_loss, discriminator_loss):
         pass

@@ -5,7 +5,8 @@ import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
 
-from base_model.base_blocks import conv_block, _activation, _norm, _padding
+from base_model.base_blocks import _activation, _norm, _padding, conv_block
+
 
 def conv_layer(in_channels, out_channels, kernel_size, stride=1, dilation=1, groups=1):
     padding = int((kernel_size - 1) / 2) * dilation
@@ -103,11 +104,11 @@ class upconv_block(nn.Module):
 class DMFB(nn.Module):
     def __init__(self, in_channels):
         super(DMFB, self).__init__()
-        self.c1 = conv_layer(in_channels, in_channels//4, 3, 1)
-        self.d1 = conv_layer(in_channels//4, in_channels//4, 3, 1, 1)  # rate = 1
-        self.d2 = conv_layer(in_channels//4, in_channels//4, 3, 1, 2)  # rate = 2
-        self.d3 = conv_layer(in_channels//4, in_channels//4, 3, 1, 4)  # rate = 4
-        self.d4 = conv_layer(in_channels//4, in_channels//4, 3, 1, 8)  # rate = 8
+        self.c1 = conv_layer(in_channels, in_channels // 4, 3, 1)
+        self.d1 = conv_layer(in_channels // 4, in_channels // 4, 3, 1, 1)  # rate = 1
+        self.d2 = conv_layer(in_channels // 4, in_channels // 4, 3, 1, 2)  # rate = 2
+        self.d3 = conv_layer(in_channels // 4, in_channels // 4, 3, 1, 4)  # rate = 4
+        self.d4 = conv_layer(in_channels // 4, in_channels // 4, 3, 1, 8)  # rate = 8
         self.act = _activation('relu')
         self.norm = _norm('in', in_channels)
         self.c2 = conv_layer(in_channels, in_channels, 1, 1)  # fusion

@@ -8,8 +8,9 @@
 
 import torch
 import torch.nn.functional as F
-from torch import nn, cuda
+from torch import cuda, nn
 from torch.autograd import Variable
+
 
 class PartialConv2d(nn.Conv2d):
     def _get_name(self):
@@ -22,7 +23,7 @@ class PartialConv2d(nn.Conv2d):
             self.multi_channel = kwargs['multi_channel']
             kwargs.pop('multi_channel')
         else:
-            self.multi_channel = False  
+            self.multi_channel = False
 
         if 'return_mask' in kwargs:
             self.return_mask = kwargs['return_mask']
@@ -36,7 +37,7 @@ class PartialConv2d(nn.Conv2d):
             self.weight_maskUpdater = torch.ones(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])
         else:
             self.weight_maskUpdater = torch.ones(1, 1, self.kernel_size[0], self.kernel_size[1])
-            
+
         self.slide_winsize = self.weight_maskUpdater.shape[1] * self.weight_maskUpdater.shape[2] * self.weight_maskUpdater.shape[3]
 
         self.last_size = (None, None, None, None)
@@ -60,15 +61,14 @@ class PartialConv2d(nn.Conv2d):
                         mask = torch.ones(1, 1, input.data.shape[2], input.data.shape[3]).to(input)
                 else:
                     mask = mask_in
-                        
+
                 self.update_mask = F.conv2d(mask, self.weight_maskUpdater, bias=None, stride=self.stride, padding=self.padding, dilation=self.dilation, groups=1)
 
                 # for mixed precision training, change 1e-8 to 1e-6
-                self.mask_ratio = self.slide_winsize/(self.update_mask + 1e-8)
+                self.mask_ratio = self.slide_winsize / (self.update_mask + 1e-8)
                 # self.mask_ratio = torch.max(self.update_mask)/(self.update_mask + 1e-8)
                 self.update_mask = torch.clamp(self.update_mask, 0, 1)
                 self.mask_ratio = torch.mul(self.mask_ratio, self.update_mask)
-
 
         raw_out = super(PartialConv2d, self).forward(torch.mul(input, mask) if mask_in is not None else input)
 

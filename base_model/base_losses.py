@@ -1,16 +1,16 @@
 import torch
 import torch.nn as nn
-import torch.nn.parallel
 import torch.nn.functional as F
+import torch.nn.parallel
 import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
-from torchvision import models
-from torch.hub import load_state_dict_from_url
 import torch.utils.model_zoo as model_zoo
+from torch.hub import load_state_dict_from_url
+from torchvision import models
 
 
-def make_vgg16_layers(style_avg_pool = False):
+def make_vgg16_layers(style_avg_pool=False):
     """
     make_vgg16_layers
     Return a custom vgg16 feature module with avg pooling
@@ -39,6 +39,7 @@ class VGG16Features(nn.Module):
     """
     VGG16 partial model
     """
+
     def __init__(self, vgg_path, layer_num=3):
         """
         Init
@@ -51,7 +52,7 @@ class VGG16Features(nn.Module):
             vgg_model.load_state_dict(
                 torch.load(vgg_path, map_location='cpu')
             )
-            print (f"Model loaded from {vgg_path}")
+            print(f"Model loaded from {vgg_path}")
         except:
             vgg_model.load_state_dict(
                 model_zoo.load_url('https://download.pytorch.org/models/vgg16-397923af.pth')
@@ -90,7 +91,6 @@ class VGG16Features(nn.Module):
 
         for param in self.parameters():
             param.requires_grad = False
-
 
     def forward(self, x):
         """

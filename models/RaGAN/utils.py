@@ -1,10 +1,11 @@
 import os
+import random
 import shutil
+
+import numpy as np
 import torch
 import torch.optim
 import torch.utils.data
-import numpy as np
-import random
 import torchvision.transforms as transforms
 from matplotlib import pyplot as plt
 from PIL import Image
@@ -19,8 +20,8 @@ def show(img):
 
 def adjust_learning_rate(epoch, args):
     """Sets the learning rate to the initial LR decayed by 2 every 30 epochs"""
-    lr_D = args.learning_rate_D * (0.5 ** ((epoch+1) // args.lr_interval_D))
-    lr_G = args.learning_rate_G * (0.5 ** ((epoch+1) // args.lr_interval_G))
+    lr_D = args.learning_rate_D * (0.5 ** ((epoch + 1) // args.lr_interval_D))
+    lr_G = args.learning_rate_G * (0.5 ** ((epoch + 1) // args.lr_interval_G))
     for param_group in args.optimizer_G.param_groups:
         param_group['lr'] = lr_G
     for param_group in args.optimizer_D.param_groups:

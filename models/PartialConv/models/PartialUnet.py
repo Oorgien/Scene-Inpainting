@@ -1,9 +1,10 @@
-from .partialconv2d import PartialConv2d
 import torch
 import torch.nn as nn
 import torch.optim
 import torch.utils.data
 from torchsummary import summary
+
+from .partialconv2d import PartialConv2d
 
 
 class Encoder(nn.Module):
@@ -36,14 +37,14 @@ class Encoder(nn.Module):
         )
 
         self.pconv_5 = PartialConv2d(in_channels=512, out_channels=512, kernel_size=3, stride=2,
-                                     padding=1,return_mask=True, multi_channel=True)
+                                     padding=1, return_mask=True, multi_channel=True)
         self.bn_5 = nn.Sequential(
             nn.BatchNorm2d(512),
             nn.ReLU()
         )
 
         self.pconv_6 = PartialConv2d(in_channels=512, out_channels=512, kernel_size=3, stride=2,
-                                     padding=1,return_mask=True, multi_channel=True)
+                                     padding=1, return_mask=True, multi_channel=True)
         self.bn_6 = nn.Sequential(
             nn.BatchNorm2d(512),
             nn.ReLU()
@@ -129,15 +130,15 @@ class Decoder(nn.Module):
             nn.LeakyReLU(0.2)
         )
 
-        self.pconv_5 = PartialConv2d(in_channels=512+256, out_channels=256, kernel_size=3,
+        self.pconv_5 = PartialConv2d(in_channels=512 + 256, out_channels=256, kernel_size=3,
                                      padding=1, stride=1, return_mask=True, multi_channel=True)
         self.bn_5 = nn.Sequential(
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2)
         )
 
-        self.pconv_6 =PartialConv2d(in_channels=256 + 128, out_channels=128, kernel_size=3,
-                                    padding=1, stride=1, return_mask=True, multi_channel=True)
+        self.pconv_6 = PartialConv2d(in_channels=256 + 128, out_channels=128, kernel_size=3,
+                                     padding=1, stride=1, return_mask=True, multi_channel=True)
         self.bn_6 = nn.Sequential(
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2)
@@ -152,7 +153,6 @@ class Decoder(nn.Module):
 
         self.pconv_8 = PartialConv2d(in_channels=64 + 3, out_channels=3, kernel_size=3,
                                      padding=1, stride=1, return_mask=True, multi_channel=True)
-
 
     def forward(self, encoder_res):
         enc_images = encoder_res['image']
@@ -209,7 +209,7 @@ class Decoder(nn.Module):
 
 
 class PartialUnet(nn.Module):
-    def __init__(self,freeze_epoch, init_weights=True, ):
+    def __init__(self, freeze_epoch, init_weights=True, ):
         super(PartialUnet, self).__init__()
 
         self.encoder = Encoder()

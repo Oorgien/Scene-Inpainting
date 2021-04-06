@@ -5,6 +5,7 @@ import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
 
+
 class SelfAttention(nn.Module):
     def __init__(self, channels, k=8):
         """
@@ -13,10 +14,10 @@ class SelfAttention(nn.Module):
         """
 
         super(SelfAttention, self).__init__()
-        self.query = nn.Conv2d(channels, channels//k, kernel_size=1)
-        self.key = nn.Conv2d(channels, channels//k, kernel_size=1)
-        self.value = nn.Conv2d(channels, channels//k, kernel_size=1)
-        self.out = nn.Conv2d(channels//k, channels, kernel_size=1)
+        self.query = nn.Conv2d(channels, channels // k, kernel_size=1)
+        self.key = nn.Conv2d(channels, channels // k, kernel_size=1)
+        self.value = nn.Conv2d(channels, channels // k, kernel_size=1)
+        self.out = nn.Conv2d(channels // k, channels, kernel_size=1)
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x):

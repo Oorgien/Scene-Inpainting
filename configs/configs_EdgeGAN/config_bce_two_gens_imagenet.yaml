@@ -1,0 +1,87 @@
+# Data dirs
+
+data_train: 'datasets/ImageNet/ILSVRC/Data/DET/train/'
+data_val: 'datasets/ImageNet/ILSVRC/Data/DET/val/'
+data_test: 'datasets/ImageNet/ILSVRC/Data/DET/test/'
+mask_train: 'datasets/Nvidia-masks/train_mask_dataset/'
+mask_test: 'datasets/Nvidia-masks/test_mask_dataset/'
+txt_files_dir: 'datasets/ImageNet/ILSVRC/ImageSets/DET/'
+
+# Model setting
+
+model_name: 'EdgeGAN'
+
+# Training settings
+
+im_size: [3, 256, 256]
+workers: 24
+batch_size: 18
+epochs: 100
+start_epoch: 0
+gpu_id: 0
+learning_rate_D: 0.0001
+learning_rate_G: 0.0003
+lr_interval_D: 25
+lr_interval_G: 25
+adam_betas_D: [0.5 , 0.9]
+adam_betas_G: [0.5 , 0.9]
+checkpoint_interval: 1
+sample_interval: 50
+warmup_batches: 5400
+debug: False
+freeze_epoch: None
+# checkpoints/checkpoints_FineGAN/checkpoints_model_fine_gan/checkpoint.pth.tar
+resume: ''
+parallel: False
+# adversarial mode: bce or l1
+adv_mode: 'bce'
+num_layers_fm: 5
+num_layers_vgg: 4
+train_interval_D: 2
+init_weights: 'kaiming'
+data_normalization: 'tanh'
+vgg_path: 'downloaded_models/vgg16-397923af.pth'
+
+# Loss coefecients
+
+l1_coef: 20
+freq_coef: 1
+content_coef: 1
+style_coef: 4000
+adv_G_coef: 0.1
+fm_coef: 1
+
+# Logging
+
+model_log_name: 'model_two_gens_imagenet_tanh'
+checkpoint_dir: 'checkpoints/checkpoints_FineGAN/checkpoints_' # is followed by model_log_name
+eval_dir: 'eval_epochs'
+logger: 'logger.txt'
+logdir: 'runs'
+
+
+# Dataset
+# options: 'celeba-hq', 'imagenet'
+dataset: 'imagenet'
+#options: 'nvidia'
+mask_dataset: 'nvidia'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

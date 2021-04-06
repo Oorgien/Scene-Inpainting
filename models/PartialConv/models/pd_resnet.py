@@ -2,7 +2,7 @@
 # BSD 3-Clause License
 #
 # Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
-#   
+#
 # Copyright (c) 2017, Soumith Chintala. All rights reserved.
 ###############################################################################
 '''
@@ -10,9 +10,11 @@ Code adapted from https://github.com/pytorch/vision/blob/master/torchvision/mode
 Introduced partial convolutoins based padding for convolutional layers
 '''
 
-import torch.nn as nn
 import math
+
+import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
+
 from .partialconv2d import PartialConv2d
 
 __all__ = ['PDResNet', 'pdresnet18', 'pdresnet34', 'pdresnet50', 'pdresnet101',
@@ -35,10 +37,11 @@ model_urls = {
     'pdresnet152': '',
 }
 
+
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
     return PartialConv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=False)
+                         padding=1, bias=False)
 
 
 class BasicBlock(nn.Module):
@@ -81,7 +84,7 @@ class Bottleneck(nn.Module):
         self.conv1 = PartialConv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = PartialConv2d(planes, planes, kernel_size=3, stride=stride,
-                               padding=1, bias=False)
+                                   padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv3 = PartialConv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion)
@@ -118,7 +121,7 @@ class PDResNet(nn.Module):
         self.inplanes = 64
         super(PDResNet, self).__init__()
         self.conv1 = PartialConv2d(3, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False)
+                                   bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -141,7 +144,7 @@ class PDResNet(nn.Module):
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
                 PartialConv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False),
+                              kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(planes * block.expansion),
             )
 

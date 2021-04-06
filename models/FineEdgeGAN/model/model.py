@@ -1,9 +1,11 @@
-import torch
-import torch.nn as nn
 import os
 
-from . import blocks as B
+import torch
+import torch.nn as nn
+
 from base_model.base_blocks import DMFB, SelfAttention, _activation, get_pad
+
+from . import blocks as B
 
 
 class FineBottleneck(nn.Module):
@@ -88,9 +90,9 @@ class InpaintingGenerator(nn.Module):
 
         self.decoder = nn.ModuleList([
             # [192, 64, 64]
-            B.RConv("decoder_1", self.buffer,  nf * 4,  nf * 4, kernel_size=3, stride=1, padding=1),
+            B.RConv("decoder_1", self.buffer, nf * 4, nf * 4, kernel_size=3, stride=1, padding=1),
             # [192, 64, 64]
-            B.RConv("decoder_2", self.buffer,  nf * 4,  nf * 4, kernel_size=3, stride=1, padding=1),
+            B.RConv("decoder_2", self.buffer, nf * 4, nf * 4, kernel_size=3, stride=1, padding=1),
             # [96, 128, 128]
             B.RDeConv("decoder_3", self.buffer, nf * 4, nf * 2, kernel_size=3, stride=2, padding=1, output_padding=1),
             # [96, 128, 128]
@@ -100,11 +102,11 @@ class InpaintingGenerator(nn.Module):
             # [48, 256, 256]
             B.RConv("decoder_6", self.buffer, nf * 2, nf, kernel_size=3, stride=1, padding=1),
             # [24, 256, 256]
-            B.RConv("decoder_7", self.buffer, nf, nf//2, kernel_size=3, stride=1, padding=1)
+            B.RConv("decoder_7", self.buffer, nf, nf // 2, kernel_size=3, stride=1, padding=1)
         ])
 
         self.out = nn.Sequential(
-            B.conv_block(nf//2, out_nc, 3, stride=1, padding=1,
+            B.conv_block(nf // 2, out_nc, 3, stride=1, padding=1,
                          norm='none', activation='tanh')
         )
 
@@ -121,7 +123,7 @@ class InpaintingGenerator(nn.Module):
             x = self.fine(x)
 
         for i, layer in enumerate(self.decoder):
-            if (i == 5 or i == 3) and 6-i >= 0:
+            if (i == 5 or i == 3) and 6 - i >= 0:
                 x = torch.cat([encoder_states[f"encoder_{6-i}"], x], dim=1)
             x = layer(x, mode)
         x = self.out(x)
@@ -140,9 +142,9 @@ class InpaintingDiscriminator(nn.Module):
         self.patch_dis = nn.ModuleList([
             B.SNBlock(in_channels=in_nc, out_channels=nf, kernel_size=kernel_size, stride=2,
                       padding=get_pad(256, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
-            B.SNBlock(in_channels=nf, out_channels=nf*2, kernel_size=kernel_size, stride=2,
+            B.SNBlock(in_channels=nf, out_channels=nf * 2, kernel_size=kernel_size, stride=2,
                       padding=get_pad(128, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
-            B.SNBlock(in_channels=nf*2, out_channels=nf*2, kernel_size=kernel_size, stride=2,
+            B.SNBlock(in_channels=nf * 2, out_channels=nf * 2, kernel_size=kernel_size, stride=2,
                       padding=get_pad(64, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
             B.SNBlock(in_channels=nf * 2, out_channels=nf * 4, kernel_size=kernel_size, stride=2,
                       padding=get_pad(32, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
@@ -158,13 +160,13 @@ class InpaintingDiscriminator(nn.Module):
         self.edge_dis = nn.Sequential(
             B.SobelFilter(device, in_nc=3, filter_c=1,
                           padding=get_pad(256, 3, 1), stride=1),
-            B.SNBlock(in_channels=2, out_channels=nf//2, kernel_size=kernel_size, stride=4,
+            B.SNBlock(in_channels=2, out_channels=nf // 2, kernel_size=kernel_size, stride=4,
                       padding=get_pad(256, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
-            B.SNBlock(in_channels=nf//2, out_channels=nf, kernel_size=kernel_size, stride=2,
+            B.SNBlock(in_channels=nf // 2, out_channels=nf, kernel_size=kernel_size, stride=2,
                       padding=get_pad(64, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
             B.SNBlock(in_channels=nf, out_channels=nf * 2, kernel_size=kernel_size, stride=2,
                       padding=get_pad(32, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
-            B.SNBlock(in_channels=nf*2, out_channels=nf * 4, kernel_size=kernel_size, stride=2,
+            B.SNBlock(in_channels=nf * 2, out_channels=nf * 4, kernel_size=kernel_size, stride=2,
                       padding=get_pad(16, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
             B.SNBlock(in_channels=nf * 4, out_channels=nf * 4, kernel_size=kernel_size, stride=2,
                       padding=get_pad(8, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),

@@ -1,18 +1,20 @@
 import argparse
-import numpy as np
 import os
+import sys
 import time
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim
 import torch.utils.data
-import sys
 
 from data.utils import prepare_data
-from utils import get_config
-from models.RaGAN import train as ragan_train  # test as ragan_test
-from models.FineEdgeGAN import trainer as fine_train
 from models.EdgeGAN import trainer as edge_train
+from models.FineEdgeGAN import trainer as fine_train
+from models.RaGAN import train as ragan_train  # test as ragan_test
+from utils import get_config
+
 
 def train(args,
           train_data_dataset,
@@ -51,6 +53,7 @@ def train(args,
 
         trainer.train()
 
+
 def main(args):
     if args.mode == 'train':
         # torch.autograd.set_detect_anomaly(True)
@@ -73,15 +76,15 @@ def main(args):
         # Logging
         with open(args.logger_fname, "a") as log_file:
             log_file.write('training/val dataset created\n'
-                           f'train data size: {len(train_data_dataset)}\t' 
+                           f'train data size: {len(train_data_dataset)}\t'
                            f'test data size: {len(test_data_dataset)}\n'
-                           f'train mask size: {len(train_mask_dataset)}\t' 
+                           f'train mask size: {len(train_mask_dataset)}\t'
                            f'test mask size: {len(test_mask_dataset)}\n')
 
         if not args.parallel:
             args.device = torch.device(f"cuda:{args.gpu_id}" if torch.cuda.is_available() else "cpu")
         elif args.parallel:
-            print (f"Multiple GPU devices found: {torch.cuda.device_count()}")
+            print(f"Multiple GPU devices found: {torch.cuda.device_count()}")
             args.device = torch.device(f"cuda" if torch.cuda.is_available() else "cpu")
 
         # logging
@@ -90,10 +93,10 @@ def main(args):
             log_file.write('started training\n')
 
         train(args,
-            train_data_dataset,
-            train_mask_dataset,
-            test_data_dataset,
-            test_mask_dataset)
+              train_data_dataset,
+              train_mask_dataset,
+              test_data_dataset,
+              test_mask_dataset)
 
     elif args.mode == 'test':
         pass

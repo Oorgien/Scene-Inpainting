@@ -8,8 +8,9 @@
 
 import torch
 import torch.nn.functional as F
-from torch import nn, cuda
+from torch import cuda, nn
 from torch.autograd import Variable
+
 
 class PartialConv3d(nn.Conv3d):
     def __init__(self, *args, **kwargs):
@@ -19,7 +20,7 @@ class PartialConv3d(nn.Conv3d):
             self.multi_channel = kwargs['multi_channel']
             kwargs.pop('multi_channel')
         else:
-            self.multi_channel = False  
+            self.multi_channel = False
 
         if 'return_mask' in kwargs:
             self.return_mask = kwargs['return_mask']
@@ -33,8 +34,8 @@ class PartialConv3d(nn.Conv3d):
             self.weight_maskUpdater = torch.ones(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1], self.kernel_size[2])
         else:
             self.weight_maskUpdater = torch.ones(1, 1, self.kernel_size[0], self.kernel_size[1], self.kernel_size[2])
-            
-        self.slide_winsize = self.weight_maskUpdater.shape[1] * self.weight_maskUpdater.shape[2] * self.weight_maskUpdater.shape[3]  * self.weight_maskUpdater.shape[4]
+
+        self.slide_winsize = self.weight_maskUpdater.shape[1] * self.weight_maskUpdater.shape[2] * self.weight_maskUpdater.shape[3] * self.weight_maskUpdater.shape[4]
 
         self.last_size = (None, None, None, None, None)
         self.update_mask = None
@@ -57,10 +58,10 @@ class PartialConv3d(nn.Conv3d):
                         mask = torch.ones(1, 1, input.data.shape[2], input.data.shape[3], input.data.shape[4]).to(input)
                 else:
                     mask = mask_in
-                        
+
                 self.update_mask = F.conv3d(mask, self.weight_maskUpdater, bias=None, stride=self.stride, padding=self.padding, dilation=self.dilation, groups=1)
 
-                self.mask_ratio = self.slide_winsize/(self.update_mask + 1e-8)
+                self.mask_ratio = self.slide_winsize / (self.update_mask + 1e-8)
                 # self.mask_ratio = torch.max(self.update_mask)/(self.update_mask + 1e-8)
                 self.update_mask = torch.clamp(self.update_mask, 0, 1)
                 self.mask_ratio = torch.mul(self.mask_ratio, self.update_mask)
@@ -77,7 +78,6 @@ class PartialConv3d(nn.Conv3d):
             output = torch.mul(output, self.update_mask)
         else:
             output = torch.mul(raw_out, self.mask_ratio)
-
 
         if self.return_mask:
             return output, self.update_mask

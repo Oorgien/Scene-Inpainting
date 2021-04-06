@@ -1,16 +1,16 @@
 import torch
 import torch.nn as nn
-import torch.nn.parallel
 import torch.nn.functional as F
+import torch.nn.parallel
 import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
-from torchvision import models
-from torch.hub import load_state_dict_from_url
 import torch.utils.model_zoo as model_zoo
+from torch.hub import load_state_dict_from_url
+from torchvision import models
 
 
-def make_vgg16_layers(style_avg_pool = False):
+def make_vgg16_layers(style_avg_pool=False):
     """
     make_vgg16_layers
     Return a custom vgg16 feature module with avg pooling
@@ -39,6 +39,7 @@ class VGG16Features(nn.Module):
     """
     VGG16 partial model
     """
+
     def __init__(self, vgg_path, layer_num=3):
         """
         Init
@@ -51,7 +52,7 @@ class VGG16Features(nn.Module):
             vgg_model.load_state_dict(
                 torch.load(vgg_path, map_location='cpu')
             )
-            print (f"Model loaded from {vgg_path}")
+            print(f"Model loaded from {vgg_path}")
         except:
             vgg_model.load_state_dict(
                 model_zoo.load_url('https://download.pytorch.org/models/vgg16-397923af.pth')
@@ -90,7 +91,6 @@ class VGG16Features(nn.Module):
 
         for param in self.parameters():
             param.requires_grad = False
-
 
     def forward(self, x):
         """
@@ -142,6 +142,7 @@ class SelfGuidedLoss(nn.Module):
     """
     Create Self-Guided Loss
     """
+
     def __init__(self, vgg_path, layer_num=2):
         super(SelfGuidedLoss, self).__init__()
         self.vgg_features = VGG16Features(vgg_path=vgg_path, layer_num=layer_num).eval()
@@ -169,7 +170,7 @@ class SelfGuidedLoss(nn.Module):
             num_elements = vgg_gt[i].shape[1] * vgg_gt[i].shape[2] * vgg_gt[i].shape[3]
             w = 1e3 / (vgg_gt[i].shape[1]) ** 2
             M_guided = self.AP(M_guided)
-            Loss += (w/num_elements) * F.l1_loss(M_guided * vgg_pred[i], M_guided * vgg_gt[i], reduction='sum')
+            Loss += (w / num_elements) * F.l1_loss(M_guided * vgg_pred[i], M_guided * vgg_gt[i], reduction='sum')
 
         return Loss
 
@@ -206,7 +207,6 @@ class GeometricalAlignLoss(nn.Module):
         Loss = F.mse_loss(torch.stack([X_gt, Y_gt], -1), torch.stack([X_pred, Y_pred], -1), reduction='mean')
         return Loss
 
-
     def compute_centers(self, vgg_features):
         X, Y = torch.meshgrid(torch.linspace(-1, 1, vgg_features.shape[2]),
                               torch.linspace(-1, 1, vgg_features.shape[3]))
@@ -219,7 +219,6 @@ class GeometricalAlignLoss(nn.Module):
         C_y_gt = torch.div(vgg_features, torch.sum(vgg_features, dim=(2, 3)).unsqueeze(2).unsqueeze(3) + 0.0001)
         Y_centers = torch.sum(Y * C_y_gt, dim=(2, 3))
         return X_centers, Y_centers
-
 
     def compute_center_Y(self, vgg_features):
         Y = torch.arange(1, vgg_features.shape[3] + 1).view(1, 1, -1, 1).to(self.device)
@@ -245,19 +244,18 @@ class FeatureMatchingLoss(nn.Module):
         with torch.no_grad():
             vgg_gt = self.vgg_features(target)
 
-
         Loss_vgg = 0
         for i in range(self.layer_num):
             num_elements = vgg_gt[i].shape[1] * vgg_gt[i].shape[2] * vgg_gt[i].shape[3]
             w = 1e3 / (vgg_gt[i].shape[1] ** 2)
             # print('vgg' , (w/num_elements) * F.l1_loss(local_gt[i], local_pred[i], reduction='sum'))
-            Loss_vgg += (w/num_elements) * F.l1_loss(vgg_gt[i], vgg_pred[i], reduction='sum')
+            Loss_vgg += (w / num_elements) * F.l1_loss(vgg_gt[i], vgg_pred[i], reduction='sum')
 
         Loss_dis = 0
         for i in range(min(self.dis_num, 5)):
             num_elements = local_gt[i].shape[1] * local_gt[i].shape[2] * local_gt[i].shape[3]
             w = 1e3 / (local_gt[i].shape[1] ** 2)
-            Loss_dis += (w/num_elements) * F.l1_loss(local_gt[i], local_pred[i], reduction='sum')
+            Loss_dis += (w / num_elements) * F.l1_loss(local_gt[i], local_pred[i], reduction='sum')
         return Loss_vgg, Loss_dis
 
 
@@ -300,7 +298,7 @@ class AdversarialLoss(nn.Module):
 
 
 class RaGANLoss(nn.Module):
-    def __init__(self, device,  vgg_path='downloaded_models/vgg16-397923af.pth', normalize=False):
+    def __init__(self, device, vgg_path='downloaded_models/vgg16-397923af.pth', normalize=False):
         super(RaGANLoss, self).__init__()
         self.self_guided = SelfGuidedLoss(vgg_path=vgg_path)
         self.align_loss = GeometricalAlignLoss(device, vgg_path=vgg_path)
@@ -348,7 +346,7 @@ class RaGANLoss(nn.Module):
             y = self.normalize_batch(y)
 
         # L1 loss
-        l1_loss = self.l1loss(x,y)
+        l1_loss = self.l1loss(x, y)
 
         # Self-guided loss
         self_guided_loss = self.self_guided(x, y)

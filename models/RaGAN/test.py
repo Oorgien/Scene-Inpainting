@@ -5,7 +5,8 @@ import torch.optim
 import torch.utils.data
 import torchvision.transforms as transforms
 
-from models.RaGAN.model.model import InpaintingDiscriminator, InpaintingGenerator
+from models.RaGAN.model.model import (InpaintingDiscriminator,
+                                      InpaintingGenerator)
 
 
 def eval_image(args, image, mask, save_dir):
@@ -72,4 +73,3 @@ def test(args, image, mask, save_dir):
 
     img = eval_image(args, image, mask, save_dir)
     return img
-

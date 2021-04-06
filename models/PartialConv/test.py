@@ -1,27 +1,25 @@
 import argparse
-import numpy as np
-import random
 import os
-import cv2
+import random
 import shutil
 import time
 
-from tqdm import tqdm
-from PIL import Image
-from sklearn.model_selection import train_test_split
-
+import cv2
+import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim
 import torch.utils.data
+import torchvision.transforms as transforms
+from models.loss import VGG16PartialLoss
+from models.partialconv2d import PartialConv2d
+from models.PartialUnet import PartialUnet
+from PIL import Image
+from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
-import torchvision.transforms as transforms
-import torch.nn.functional as F
-
-from models.PartialUnet import PartialUnet
-from models.partialconv2d import PartialConv2d
-from models.loss import VGG16PartialLoss
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='PyTorch Inpainting test')
 parser.add_argument('--mode', default=0, type=int,
@@ -49,6 +47,7 @@ if args.seed is not None:
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
+
 def loader(image_path, mask_path):
     mask = Image.open(mask_path)
     image = Image.open(image_path)
@@ -56,17 +55,18 @@ def loader(image_path, mask_path):
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
     image_transform = transforms.Compose([
-                transforms.Resize((512, 512)),
-                transforms.ToTensor(),
-                normalize])
+        transforms.Resize((512, 512)),
+        transforms.ToTensor(),
+        normalize])
     mask_transform = transforms.Compose([
-                transforms.Resize((512, 512))
-            ])
+        transforms.Resize((512, 512))
+    ])
     mask = mask_transform(mask)
     mask = transforms.ToTensor()(np.array(mask))
     mask = (mask < 0.6).float()
     image = image_transform(image)
     return image, mask, im_size
+
 
 def unloader(image, im_size):
     transform = transforms.Compose([
@@ -133,7 +133,7 @@ def eval(images_names, masks_names, model, epoch, device):
 
 def main():
     device = torch.device(f"cuda:{args.gpu_id}" if torch.cuda.is_available() else "cpu")
-    model = PartialUnet(freeze_epoch= 1000).to(device)
+    model = PartialUnet(freeze_epoch=1000).to(device)
     optimizer = torch.optim.Adam(model.parameters())
 
     if os.path.isfile(args.model_path):

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+
 from . import blocks as B
 
 
@@ -48,7 +49,7 @@ class InpaintingGenerator(nn.Module):
         x = self.blocks(x)
         x = self.decoder(x)
         return x
-    
+
 
 class InpaintingDiscriminator(nn.Module):
     def __init__(self, in_nc, nf, norm='bn', activation='lrelu', init_weights=True):
@@ -96,7 +97,7 @@ class InpaintingDiscriminator(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.normal_(m.weight, 0, 0.01)
                 nn.init.constant_(m.bias, 0)
-        
+
     def forward(self, x, x_local):
         global_branch_features = []
         global_branch_features.append(x)
