@@ -75,9 +75,9 @@ class CelebaHQDataset(BaseImageDataset):
         return image
 
 
-class NvidiaMaskDataset(Dataset):
-    def __init__(self, im_size, mode, multichannel=True):
-        super(NvidiaMaskDataset, self).__init__(im_size, image_dir, multichannel)
+class NvidiaMaskDataset(BaseMaskDataset):
+    def __init__(self, im_size, mode, image_dir, multichannel=True):
+        super(NvidiaMaskDataset, self).__init__(im_size, multichannel)
         self.images_list = sorted(os.listdir(image_dir))
         self.image_dir = image_dir
         self.mode = mode

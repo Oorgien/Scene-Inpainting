@@ -9,7 +9,47 @@ import torch.utils.data
 import sys
 
 from data.utils import prepare_data
-from utils import get_config, train
+from utils import get_config
+from models.RaGAN import train as ragan_train  # test as ragan_test
+from models.FineEdgeGAN import trainer as fine_train
+from models.EdgeGAN import trainer as edge_train
+
+def train(args,
+          train_data_dataset,
+          train_mask_dataset,
+          test_data_dataset,
+          test_mask_dataset):
+
+    if args.model_name == "RaGAN":
+
+        ragan_train.train(
+            args,
+            train_data_dataset,
+            train_mask_dataset,
+            test_data_dataset,
+            test_mask_dataset)
+
+    elif args.model_name == "FineEdgeGAN":
+
+        trainer = fine_train.FineEdgeGanTrainer(
+            args,
+            train_data_dataset,
+            train_mask_dataset,
+            test_data_dataset,
+            test_mask_dataset)
+
+        trainer.train()
+
+    elif args.model_name == "EdgeGAN":
+
+        trainer = edge_train.EdgeGanTrainer(
+            args,
+            train_data_dataset,
+            train_mask_dataset,
+            test_data_dataset,
+            test_mask_dataset)
+
+        trainer.train()
 
 def main(args):
     if args.mode == 'train':
