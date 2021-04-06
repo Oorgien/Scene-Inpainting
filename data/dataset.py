@@ -10,6 +10,8 @@ import random
 import cv2
 import os
 
+from .base_dataset import BaseImageDataset, BaseMaskDataset
+
 
 class Dilate(object):
     """
@@ -32,19 +34,12 @@ class Dilate(object):
         return dilatation_dst
 
 
-class ImageDataset(Dataset):
-    def __init__(self, im_size, image_dir, images_list, mode, dataset="celeba-hq", normalization="tanh"):
+class CelebaHQDataset(BaseImageDataset):
+    def __init__(self, im_size, mode, image_dir, image_list, normalization="tanh"):
+        super(CelebaHQDataset, self).__init__(im_size, normalization)
         self.image_dir = image_dir
+        self.image_list = image_list
         self.mode = mode
-        self.image_list = images_list
-        self.dataset = dataset
-        self.im_size = im_size
-        if normalization == "tanh":
-            self.mean = [0.5, 0.5, 0.5]
-            self.std = [0.5, 0.5, 0.5]
-        elif normalization == "imagenet":
-            self.mean = [0.485, 0.456, 0.406]
-            self.std = [0.229, 0.224, 0.225]
 
     def __len__(self):
         return len(self.image_list)
@@ -56,56 +51,51 @@ class ImageDataset(Dataset):
         return image
 
     def __getitem__(self, idx):
-        if self.dataset == "celeba-hq":
-            normalize = transforms.Normalize(mean=self.mean,
-                                             std=self.std)
-            data_transforms = {
-                'train': transforms.Compose([
-                    # transforms.RandomResizedCrop(self.im_size),
-                    transforms.RandomHorizontalFlip(p=0.5),
-                    transforms.ToTensor(),
-                    normalize,
-                    # transforms.RandomApply([transforms.ColorJitter(contrast=0.9)], p=0.5),
-                    # transforms.RandomApply([transforms.ColorJitter(brightness=0.1)], p=0.5),
-                ]),
-                'test': transforms.Compose([
-                    transforms.Resize(self.im_size),
-                    transforms.ToTensor(),
-                    normalize])
-            }
-
-            transform = data_transforms[self.mode]
-            if torch.is_tensor(idx):
-                idx = idx.tolist()
-
-            image = self.load_sample(self.image_list[idx])
-            image = transform(image)
-            return image
+        normalize = transforms.Normalize(mean=self.mean,
+                                         std=self.std)
+        data_transforms = {
+            'train': transforms.Compose([
+                # transforms.RandomResizedCrop(self.im_size),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.ToTensor(),
+                normalize,
+                # transforms.RandomApply([transforms.ColorJitter(contrast=0.9)], p=0.5),
+                # transforms.RandomApply([transforms.ColorJitter(brightness=0.1)], p=0.5),
+            ]),
+            'test': transforms.Compose([
+                transforms.Resize(self.im_size),
+                transforms.ToTensor(),
+                normalize])
+        }
+        transform = data_transforms[self.mode]
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        image = self.load_sample(self.image_list[idx])
+        image = transform(image)
+        return image
 
 
-class MaskDataset(Dataset):
-    def __init__(self, im_size, image_dir, mode, dataset="nvidia", multichannel=True):
+class NvidiaMaskDataset(Dataset):
+    def __init__(self, im_size, mode, multichannel=True):
+        super(NvidiaMaskDataset, self).__init__(im_size, image_dir, multichannel)
+        self.images_list = sorted(os.listdir(image_dir))
         self.image_dir = image_dir
         self.mode = mode
-        self.image_list = sorted(os.listdir(self.image_dir))
-        self.multichannel = multichannel
-        self.dataset = dataset
         self.im_size = im_size
 
     def __len__(self):
         return len(self.image_list)
 
     def load_sample(self, mask_name):
-        if self.dataset == "nvidia":
-            mask_path = os.path.join(self.image_dir,
-                                    mask_name)
-            mask = np.asarray(Image.open(mask_path))
-            if self.mode == 'train':
-                mask = (mask < 153).astype(float)
-            elif self.mode == 'test':
-                mask = (mask > 153).astype(float)
-            mask = Image.fromarray(mask * 255)
-            return mask
+        mask_path = os.path.join(self.image_dir,
+                                mask_name)
+        mask = np.asarray(Image.open(mask_path))
+        if self.mode == 'train':
+            mask = (mask < 153).astype(float)
+        elif self.mode == 'test':
+            mask = (mask > 153).astype(float)
+        mask = Image.fromarray(mask * 255)
+        return mask
 
     def __getitem__(self, idx):
         data_transforms = {
