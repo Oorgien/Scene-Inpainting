@@ -1,13 +1,15 @@
-from utils import get_config
-from models.RaGAN import test
-from PIL import Image, ImageDraw, ImageGrab, ImageTk
-import torchvision.transforms as transforms
-from tkinter import filedialog
-from tkinter import *
-import os
-import io
 import copy
+import io
+import os
+from tkinter import *
+from tkinter import filedialog
+
 import matplotlib
+import torchvision.transforms as transforms
+from PIL import Image, ImageDraw, ImageGrab, ImageTk
+
+from models.RaGAN import test
+from utils import get_config
 
 matplotlib.use('Agg')
 

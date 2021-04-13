@@ -1,14 +1,15 @@
+import os
+import random
+
+import cv2
 import numpy as np
-from PIL import Image
 import torch
 import torch.nn as nn
 import torch.optim
 import torch.utils.data
-from torch.utils.data import Dataset
 import torchvision.transforms as transforms
-import random
-import cv2
-import os
+from PIL import Image
+from torch.utils.data import Dataset
 
 from .base_dataset import BaseImageDataset, BaseMaskDataset
 
@@ -177,9 +178,9 @@ class ImageNetDataset(BaseImageDataset):
 
 
 class NvidiaMaskDataset(BaseMaskDataset):
-    def __init__(self, im_size, image_dir, mode, multichannel):
+    def __init__(self, im_size, image_dir, mode, multichannel, expand):
         super(NvidiaMaskDataset, self).__init__(im_size, multichannel)
-        self.image_list = sorted(os.listdir(image_dir))
+        self.image_list = sorted(os.listdir(image_dir)) * expand
         self.image_dir = image_dir
         self.mode = mode
         self.im_size = im_size

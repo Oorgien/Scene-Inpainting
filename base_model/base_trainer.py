@@ -177,7 +177,7 @@ class trainer():
             self.resume_training()
         with tqdm(desc="Epoch", total=self.epochs) as progress:
             for i, epoch in enumerate(range(self.start_epoch, self.start_epoch + self.epochs)):
-                if self.mask_dataset == 'nvidia':
+                if self.dataset == 'celeba-hq':
                     self.init_mask_loader()
                 self.adjust_learning_rate(epoch)
 
