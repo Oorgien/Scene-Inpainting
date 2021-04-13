@@ -180,7 +180,6 @@ class EdgeGanTrainer(trainer):
 
             discriminator_loss.append(loss_D.item())
 
-
     def eval_batch(self, i, epoch, image, mask, generator_loss, discriminator_loss):
         if (image.shape[0] != mask.shape[0]):
             mask = mask[:image.shape[0]]
