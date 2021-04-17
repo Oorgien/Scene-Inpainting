@@ -1,4 +1,5 @@
-# Inpainting model for MPMFP project
+# Inpainting model 
+
 - [ ] Add description for all models
 - [ ] Create MADF-GAN network
 
