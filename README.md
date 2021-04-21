@@ -1,5 +1,4 @@
-# Inpainting model 
-
+# Inpainting model
 - [ ] Add description for all models
 - [ ] Create MADF-GAN network
 

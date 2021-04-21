@@ -6,7 +6,8 @@ import torch.utils.data
 import torch.utils.data.distributed
 from torch.nn import functional as F
 
-from base_model.base_blocks import _activation, _norm, _padding, conv_block, upconv_block
+from base_model.base_blocks import (_activation, _norm, _padding, conv_block,
+                                    upconv_block)
 
 
 class MADF(nn.Module):
@@ -17,7 +18,8 @@ class MADF(nn.Module):
                  stride_m, stride_e,
                  padding_m, padding_e,
                  activation_m='relu', activation_e='relu',
-                 norm_m='none', norm_e='bn'):
+                 norm_m='none', norm_e='bn',
+                 device=torch.device('cpu')):
         """
         :param in_channels_m: input channels of mask layer - m {l-1}
         :param out_channels_m: output channels of mask layer - m {l}
@@ -77,6 +79,10 @@ class MADF(nn.Module):
             activation="none",
             norm='none')
 
+        self.device = device
+        self.activation_e = _activation(activation_e)
+        self.norm = _norm(norm_e, out_channels_e)
+
     def forward(self, m_l_1, e_l_1):
         """
         :param m_l_1: mask input layer
@@ -101,21 +107,19 @@ class MADF(nn.Module):
         e_l_1 = F.pad(e_l_1, pad, "constant", 0)
 
         # Initializing kernel matrix to store
-        e_l = torch.zeros((m_l_1.shape[0], self.out_channels_e, N_h, N_w))
+        e_l = torch.zeros((m_l_1.shape[0], self.out_channels_e, N_h, N_w)).to(self.device)
         for batch_id in range(m_l.shape[0]):
-            for i in range(0, filter.shape[0], self.stride_e):
+            for i in range(0, filter.shape[2], self.stride_e):
                 for j in range(0, filter.shape[1], self.stride_e):
                     product = F.conv2d(
                         e_l_1[batch_id, :, i:i + self.kernel_size_e, j:j + self.kernel_size_e].unsqueeze(0),
                         filter[batch_id, i, j, :, :, :, :].squeeze(0).squeeze(0))
                     e_l[batch_id, :, i, j] = product.view(1, self.out_channels_e)
 
-        activation_e = _activation(self.activation_e)
-        norm = _norm(self.norm_e, self.out_channels_e)
-        if activation_e:
-            e_l = activation_e(e_l)
-        if norm:
-            e_l = norm(e_l)
+        if self.activation_e:
+            e_l = self.activation_e(e_l)
+        if self.norm:
+            e_l = self.norm(e_l)
         return m_l, e_l
 
 
@@ -154,12 +158,12 @@ class RecovecyBlock(nn.Module):
         super(RecovecyBlock, self).__init__()
 
         self.in_upconv = upconv_block(
-            in_channels = in_channels_r,
-            out_channels = out_channels_r,
+            in_channels=in_channels_r,
+            out_channels=out_channels_r,
             kernel_size=kernel_size_in,
             stride=up_stride_in,
             padding=up_padding_in,
-            output_padding = output_padding,
+            output_padding=output_padding,
             norm=norm_in,
             activation=activation_in
         )
@@ -178,7 +182,7 @@ class RecovecyBlock(nn.Module):
         r_l_new = self.in_upconv(r_l)
         r_l_1 = self.out_conv(torch.cat((r_l_new, u_l_1), dim=1))
         return r_l_1
-    
+
 
 class RefinementBlock(nn.Module):
     def __init__(self,
@@ -228,12 +232,12 @@ class RefinementBlock(nn.Module):
         )
 
         self.upconv_2 = upconv_block(
-            in_channels = in_channels_2,
-            out_channels = out_channels,
-            kernel_size = kernel_size_2,
-            stride = up_stride_2,
-            padding = up_padding_2,
-            output_padding = output_padding,
+            in_channels=in_channels_2,
+            out_channels=out_channels,
+            kernel_size=kernel_size_2,
+            stride=up_stride_2,
+            padding=up_padding_2,
+            output_padding=output_padding,
             norm=norm_in,
             activation='none'
         )
@@ -284,7 +288,7 @@ class RefinementBlock(nn.Module):
         return sum
 
 
-def test_blocks():
+def test_blocks(device_id):
     print("MADF test...")
     block = MADF(
         in_channels_m=3, out_channels_m=4,
@@ -342,7 +346,4 @@ def test_blocks():
     out = block.forward(f_1, f_2)
     assert (out.shape == (10, 32, 64, 64))
     print("Refinement Block test --- OK")
-
-
-if __name__ == "__main__":
-    test_blocks()
+    return True

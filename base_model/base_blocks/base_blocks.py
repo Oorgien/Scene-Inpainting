@@ -53,7 +53,7 @@ def _padding(pad_type, padding):
     elif pad_type == 'replicate':
         layer = nn.ReplicationPad2d(padding)
     else:
-        assert 0, "Unsupported padding type: {}".format(pad_type)
+        raise NotImplementedError("Unsupported padding type: {}".format(pad_type))
 
     return layer
 
@@ -115,16 +115,16 @@ class upconv_block(nn.Module):
         super(upconv_block, self).__init__()
 
         self.deconv = nn.ConvTranspose2d(
-            in_channels = in_channels,
-            out_channels = out_channels,
-            kernel_size = kernel_size,
-            stride = stride,
-            padding = padding,
-            output_padding = output_padding,
-            groups = groups,
-            bias = bias,
-            dilation = dilation,
-            padding_mode = padding_mode
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            output_padding=output_padding,
+            groups=groups,
+            bias=bias,
+            dilation=dilation,
+            padding_mode=padding_mode
         )
         self.norm = _norm(norm, out_channels)
         self.activation = _activation(activation, neg_slope=0.2, n_prelu=1)

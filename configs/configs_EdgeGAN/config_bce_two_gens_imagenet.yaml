@@ -48,12 +48,12 @@ l1_coef: 20
 freq_coef: 1
 content_coef: 1
 style_coef: 4000
-adv_G_coef: 0.1
+adv_G_coef: 0.03
 fm_coef: 1
 
 # Logging
 
-model_log_name: 'model_two_gens_imagenet_tanh'
+model_log_name: 'model_two_gens_imagenet_tanh_adv0.03'
 checkpoint_dir: 'checkpoints/checkpoints_FineGAN/checkpoints_' # is followed by model_log_name
 eval_dir: 'eval_epochs'
 logger: 'logger.txt'

@@ -1,1 +1,2 @@
-from data import dataset, utils
+from . import utils
+from .dataset import CelebaHQDataset, NvidiaMaskDataset, ImageNetDataset
