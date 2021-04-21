@@ -123,6 +123,39 @@ class MADF(nn.Module):
         return m_l, e_l
 
 
+class SimpleMADF(nn.Module):
+    def __init__(self,
+                 in_channels_m, out_channels_m,
+                 in_channels_e, out_channels_e,
+                 kernel_size, stride, padding,
+                 activation='relu', norm='none'):
+        super(SimpleMADF, self).__init__()
+
+        self.conv_m = conv_block(
+            in_channels=in_channels_m,
+            out_channels=out_channels_m,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            activation=activation,
+            norm='none')
+
+        self.conv_e = conv_block(
+            in_channels=in_channels_e + in_channels_m,
+            out_channels=out_channels_e,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            activation=activation,
+            norm=norm)
+
+    def forward(self, m_l_1, e_l_1):
+        m_l = self.conv_m(m_l_1)
+        e_input = torch.cat((e_l_1, m_l_1), dim=1)
+        e_l = self.conv_e(e_input)
+        return m_l, e_l
+
+
 class RecovecyBlock(nn.Module):
     def __init__(self,
                  in_channels_r, out_channels_r, in_channels_u, out_channels,
@@ -305,7 +338,18 @@ def test_blocks(device_id):
     m_l, e_l = block.forward(m_l_1, e_l_1)
     assert (m_l.shape == (10, 4, 32, 32))
     assert (e_l.shape == (10, 4, 32, 32))
-    print("MADF test passed --- OK")
+    print("MADF test --- OK")
+
+    print ("Simple MADF testing")
+    simple_madf = SimpleMADF(
+        in_channels_m=3, out_channels_m=4,
+        in_channels_e=3, out_channels_e=4,
+        kernel_size=3,
+        stride=2, padding=1)
+    m_l, e_l = simple_madf.forward(m_l_1, e_l_1)
+    assert (m_l.shape == (10, 4, 32, 32))
+    assert (e_l.shape == (10, 4, 32, 32))
+    print ("Silple MADF test --- OK")
 
     print("Recovery block test...")
     u_l_1 = torch.randn(size=(10, 6, 64, 64))

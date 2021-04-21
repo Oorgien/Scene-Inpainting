@@ -17,21 +17,20 @@ class CoarseEncoder(nn.Module):
         self.madf_seq = nn.ModuleList([
             # im - [3, 256, 256]
             # mask - [1, 256, 256]
-            B.MADF(in_channels_m=in_channels_m, out_channels_m=2, in_channels_e=in_channels_e,
-                   out_channels_e=16, kernel_size_m=5, kernel_size_e=5, stride_m=2, stride_e=2,
-                   padding_m=2, padding_e=2, device=device),
+            B.SimpleMADF(in_channels_m=in_channels_m, out_channels_m=2, in_channels_e=in_channels_e,
+                         out_channels_e=16, kernel_size=5, stride=2, padding=2),
             # im - [16, 128, 128]
             # mask - [2, 128, 128]
-            B.MADF(in_channels_m=2, out_channels_m=4, in_channels_e=16, out_channels_e=32, device=device,
-                   kernel_size_m=3, kernel_size_e=3, stride_m=2, stride_e=2, padding_m=1, padding_e=1),
+            B.SimpleMADF(in_channels_m=2, out_channels_m=4, in_channels_e=16,
+                         out_channels_e=32, kernel_size=3, stride=2, padding=1),
             # im - [32, 64, 64]
             # mask - [4, 64, 64]
-            B.MADF(in_channels_m=4, out_channels_m=8, in_channels_e=32, out_channels_e=64, device=device,
-                   kernel_size_m=3, kernel_size_e=3, stride_m=2, stride_e=2, padding_m=1, padding_e=1),
+            B.SimpleMADF(in_channels_m=4, out_channels_m=8, in_channels_e=32,
+                         out_channels_e=64, kernel_size=3, stride=2, padding=1),
             # im - [64, 32, 32]
             # mask - [8, 32, 32]
-            B.MADF(in_channels_m=8, out_channels_m=16, in_channels_e=64, out_channels_e=128, device=device,
-                   kernel_size_m=3, kernel_size_e=3, stride_m=2, stride_e=2, padding_m=1, padding_e=1),
+            B.SimpleMADF(in_channels_m=8, out_channels_m=16, in_channels_e=64,
+                         out_channels_e=128, kernel_size=3, stride=2, padding=1),
             # im - [128, 16, 16]
             # mask - [16, 16, 16]
         ])
@@ -273,8 +272,8 @@ def test_model(device_id):
     print("Contextual attention fine generator testing...")
     fine_dec = FineGenerator(device=device).to(device)
     res = fine_dec(torch.cat((rec_out[3], mask), dim=1), mask)
-    # s = torch.sum(res[0])
-    # s.backward()
+    s = torch.sum(res[0])
+    s.backward()
     assert res[0].shape == (10, 3, 256, 256)
     assert res[1].shape == (10, 1, 64, 64)
     print("Contextual attention fine generator test -- OK")
