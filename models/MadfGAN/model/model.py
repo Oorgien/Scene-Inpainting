@@ -190,7 +190,8 @@ class FineGenerator(nn.Module):
         )
 
         # Contextual attention
-        self.contextual_attention = ContextualAttention(ksize=3, stride=1, padding=1, softmax_scale=10, device=device)
+        self.contextual_attention = ContextualAttention(ksize=3, stride=1, rate=2, fuse_k=3, softmax_scale=10,
+                                                        fuse=True, device=device)
         # [cnum * 4, 64, 64]
 
         self.after_attn = nn.Sequential(
@@ -275,6 +276,6 @@ def test_model(device_id):
     s = torch.sum(res[0])
     s.backward()
     assert res[0].shape == (10, 3, 256, 256)
-    assert res[1].shape == (10, 1, 64, 64)
+    assert res[1].shape == (10, 3, 256, 256)
     print("Contextual attention fine generator test -- OK")
     return True

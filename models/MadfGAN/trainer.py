@@ -153,10 +153,8 @@ class MADFGanTrainer(trainer):
         generator_loss.append(loss_G.item())
 
         # Compute gradient and do gradient step
-        print (loss_G)
-        # loss_G.backward(retain_graph=True)
-        loss_G.backward()
-        print ("Ok")
+
+        loss_G.backward(retain_graph=True)
         self.optimizer_G.step()
 
         # Logging
@@ -211,10 +209,11 @@ class MADFGanTrainer(trainer):
 
         # Prediction
         predicted_coarse = self.model_G.forward_coarse(masked_image, mask)
+        predicted_coarse = predicted_coarse[-1]
         predicted_coarse = masked_image + torch.mul(predicted_coarse,
                                                     (torch.ones(mask_3x.shape).to(self.device) - mask_3x))
 
-        predicted_fine, offset = self.model_G.forward_fine(torch.cat((predicted_coarse, mask), dim=1), mask)
+        predicted_fine, flow = self.model_G.forward_fine(torch.cat((predicted_coarse, mask), dim=1), mask)
         predicted_fine = masked_image + torch.mul(predicted_fine, (torch.ones(mask_3x.shape).to(self.device) - mask_3x))
 
         target_cropped, predicted_cropped = self.local_crop(target, predicted_fine)
@@ -273,6 +272,7 @@ class MADFGanTrainer(trainer):
             std = torch.tensor([0.5, 0.5, 0.5]).view(1, 3, 1, 1)
 
             img = (predicted_fine.cpu() * std + mean)
+
             for k, (im, m, flow) in enumerate(zip(img, mask, offset)):
                 t(im).save(f'{os.path.join(self.eval_dir, self.model_log_name)}/eval_{epoch}/batch{i}_{k}_img.jpg')
                 t(flow).save(f'{os.path.join(self.eval_dir, self.model_log_name)}/eval_{epoch}/batch{i}_{k}_flow.jpg')

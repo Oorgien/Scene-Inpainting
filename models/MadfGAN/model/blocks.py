@@ -340,7 +340,7 @@ def test_blocks(device_id):
     assert (e_l.shape == (10, 4, 32, 32))
     print("MADF test --- OK")
 
-    print ("Simple MADF testing")
+    print("Simple MADF testing")
     simple_madf = SimpleMADF(
         in_channels_m=3, out_channels_m=4,
         in_channels_e=3, out_channels_e=4,
@@ -349,7 +349,7 @@ def test_blocks(device_id):
     m_l, e_l = simple_madf.forward(m_l_1, e_l_1)
     assert (m_l.shape == (10, 4, 32, 32))
     assert (e_l.shape == (10, 4, 32, 32))
-    print ("Silple MADF test --- OK")
+    print("Silple MADF test --- OK")
 
     print("Recovery block test...")
     u_l_1 = torch.randn(size=(10, 6, 64, 64))
