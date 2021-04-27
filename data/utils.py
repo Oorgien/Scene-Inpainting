@@ -37,8 +37,8 @@ def prepare_data(args):
             im_size, txt_files_dir=args.txt_files_dir, train_dir=args.data_train,
             val_dir=args.data_val, test_dir=args.data_test, mode='test',
             normalization=args.data_normalization)
-        expand_train = 17
-        expand_test = 20
+        expand_train = 9
+        expand_test = 5
     else:
         raise NameError(f"Unsupported dataset {args.dataset} name")
 
@@ -52,5 +52,4 @@ def prepare_data(args):
                                               expand=expand_test)
     else:
         raise NameError(f"Unsupported mask dataset {args.mask_dataset} name")
-
     return train_data_dataset, test_data_dataset, train_mask_dataset, test_mask_dataset

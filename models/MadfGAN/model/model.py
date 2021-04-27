@@ -232,7 +232,9 @@ class FineGenerator(nn.Module):
 
 
 class InpaintingGenerator(nn.Module):
-    def __init__(self, image_inc_coarse=3, mask_inc_coarse=1, image_inc_fine=4, nc_fine=32, device=None):
+    def __init__(self, image_inc_coarse=3, mask_inc_coarse=1,
+                 image_inc_fine=4, nc_fine=32,
+                 device=torch.device('cuda')):
         """
         :param image_inc_coarse: number of channels of input image in coarse generator.
         :param mask_inc_coarse: number of channels of input mask in coarse generator.
@@ -244,6 +246,7 @@ class InpaintingGenerator(nn.Module):
 
         self.coarse_generator = CoarseGenerator(image_inc_coarse, mask_inc_coarse, device)
         self.fine_generator = FineGenerator(image_inc_fine, nc_fine, device)
+        self.device = device
 
     def forward_coarse(self, x, mask):
         coarse_output = self.coarse_generator(x, mask)
@@ -252,6 +255,16 @@ class InpaintingGenerator(nn.Module):
     def forward_fine(self, x, mask):
         fine_output, offset = self.fine_generator(x, mask)
         return fine_output, offset
+
+    def forward(self, masked_image, mask_3x, mask):
+        predicted_coarse = self.forward_coarse(masked_image, mask)
+        predicted_coarse = predicted_coarse[-1]
+        predicted_coarse = masked_image + torch.mul(predicted_coarse,
+                                                    (torch.ones(mask_3x.shape).to(self.device) - mask_3x))
+
+        predicted_fine, flow = self.forward_fine(torch.cat((predicted_coarse, mask), dim=1), mask)
+        predicted_fine = masked_image + torch.mul(predicted_fine, (torch.ones(mask_3x.shape).to(self.device) - mask_3x))
+        return predicted_coarse, predicted_fine, flow
 
 
 def test_model(device_id):

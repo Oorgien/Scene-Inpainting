@@ -46,10 +46,11 @@ class L1FrequencyLoss(nn.Module):
 
 
 class VggLoss(nn.Module):
-    def __init__(self, vgg_path, num_layers):
+    def __init__(self, vgg_path, num_layers, device=torch.device("cuda")):
         super(VggLoss, self).__init__()
         self.vgg_features = VGG16Features(vgg_path=vgg_path, layer_num=5)
         self.num_layers = num_layers
+        self.device = device
 
     def compute_vgg(self, x, num_layers):
         """
@@ -86,12 +87,17 @@ class VggLoss(nn.Module):
             num_elements = vgg_gt[i].shape[1] * vgg_gt[i].shape[2] * vgg_gt[i].shape[3]
             w = 1e3 / (vgg_gt[i].shape[1] ** 2)
 
-            loss = (w / num_elements) * F.l1_loss(gram_matrix(vgg_pred[i]), gram_matrix(vgg_gt[i]), reduction="sum")
+            loss = (w / num_elements) * F.l1_loss(
+                gram_matrix(vgg_pred[i], self.device),
+                gram_matrix(vgg_gt[i], self.device),
+                reduction="sum"
+            )
             Style_loss += loss
 
         return Content_loss, Style_loss
 
     def forward(self, predicted, target):
+
         return self.compute_perceptual(predicted, target)
 
 
@@ -137,7 +143,7 @@ class FineEdgeLoss(nn.Module):
         self.num_layers = num_layers
         self.l1loss = torch.nn.L1Loss(reduction='mean').to(device)
         self.frequency_loss = L1FrequencyLoss(in_nc, kernel_size, sigma, device)
-        self.vgg_loss = VggLoss(vgg_path, num_layers)
+        self.vgg_loss = VggLoss(vgg_path, num_layers, device)
 
     def forward(self, predicted, target):
         l1_loss = self.l1loss(predicted, target)

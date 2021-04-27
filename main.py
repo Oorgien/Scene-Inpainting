@@ -5,9 +5,13 @@ import time
 
 import numpy as np
 import torch
+import torch.distributed as dist
+import torch.multiprocessing as mp
 import torch.nn as nn
 import torch.optim
 import torch.utils.data
+from apex import amp
+from apex.parallel import DistributedDataParallel as DDP
 
 from data.utils import prepare_data
 from models.EdgeGAN import trainer as edge_train
@@ -49,17 +53,30 @@ def main(args):
         elif args.parallel:
             print(f"Multiple GPU devices found: {torch.cuda.device_count()}")
             args.device = torch.device(f"cuda" if torch.cuda.is_available() else "cpu")
+            args.gpu_ids = list(map(int, args.gpu_id.split(',')))
+            args.gpus = len(args.gpu_ids)
+            args.world_size = args.gpus * args.nodes
+        os.environ['MASTER_ADDR'] = 'localhost'  # 10.241.24.185
+        os.environ['MASTER_PORT'] = '8888'
 
         # logging
         with open(args.logger_fname, "a") as log_file:
             log_file.write(f'model created on device {args.device}\n')
             log_file.write('started training\n')
-
-        train(args,
-              train_data_dataset,
-              train_mask_dataset,
-              test_data_dataset,
-              test_mask_dataset)
+        if args.parallel:
+            mp.spawn(
+                train, nprocs=args.gpus,
+                args=(args,
+                      train_data_dataset,
+                      train_mask_dataset,
+                      test_data_dataset,
+                      test_mask_dataset))
+        else:
+            train(args.gpu_id, args,
+                  train_data_dataset,
+                  train_mask_dataset,
+                  test_data_dataset,
+                  test_mask_dataset)
 
     elif args.mode == 'test':
         pass
@@ -67,11 +84,12 @@ def main(args):
         raise NameError('Running mode is not chosen.')
 
 
-def train(args,
+def train(gpu, args,
           train_data_dataset,
           train_mask_dataset,
           test_data_dataset,
           test_mask_dataset):
+    args.gpu = gpu
     if args.model_name == "RaGAN":
         ragan_train.train(
             args, train_data_dataset, train_mask_dataset, test_data_dataset, test_mask_dataset)

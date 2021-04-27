@@ -7,6 +7,7 @@ import time
 import cv2
 import numpy as np
 import torch
+import torch.distributed as dist
 import torch.nn as nn
 import torch.optim
 import torch.utils.data
@@ -40,20 +41,50 @@ class trainer():
         pass
 
     def init_mask_loader(self):
+        # Train Dataset
+        train_sampler = torch.utils.data.distributed.DistributedSampler(
+            self.train_mask_dataset,
+            num_replicas=self.world_size,
+            rank=self.rank,
+            shuffle=True
+        ) if self.parallel else None
         self.train_mask_loader = DataLoader(
-            self.train_mask_dataset, batch_size=self.batch_size, shuffle=True,
-            num_workers=self.workers, pin_memory=True)
+            self.train_mask_dataset, batch_size=self.batch_size, shuffle=False,  # (train_sampler is None),
+            num_workers=self.workers, pin_memory=True, sampler=train_sampler)
+
+        # Test Dataset
+        test_sampler = torch.utils.data.distributed.DistributedSampler(
+            self.test_mask_dataset,
+            num_replicas=self.world_size,
+            rank=self.rank,
+            shuffle=False
+        ) if self.parallel else None
         self.test_mask_loader = DataLoader(
-            self.test_mask_dataset, batch_size=self.batch_size, shuffle=False,
-            num_workers=self.workers, pin_memory=True)
+            self.test_mask_dataset, batch_size=self.batch_size, shuffle=False,  # (test_sampler is None),
+            num_workers=self.workers, pin_memory=True, sampler=test_sampler)
 
     def init_data_loader(self):
+        # Train Dataset
+        train_sampler = torch.utils.data.distributed.DistributedSampler(
+            self.train_data_dataset,
+            num_replicas=self.world_size,
+            rank=self.rank,
+            shuffle=True
+        ) if self.parallel else None
         self.train_data_loader = DataLoader(
-            self.train_data_dataset, batch_size=self.batch_size, shuffle=True,
-            num_workers=self.workers, pin_memory=True)
+            self.train_data_dataset, batch_size=self.batch_size, shuffle=False,  # (train_sampler is None),
+            num_workers=self.workers, pin_memory=True, sampler=train_sampler)
+
+        # Test Dataset
+        test_sampler = torch.utils.data.distributed.DistributedSampler(
+            self.test_data_dataset,
+            num_replicas=self.world_size,
+            rank=self.rank,
+            shuffle=False
+        ) if self.parallel else None
         self.test_data_loader = DataLoader(
-            self.test_data_dataset, batch_size=self.batch_size, shuffle=False,
-            num_workers=self.workers, pin_memory=True)
+            self.test_data_dataset, batch_size=self.batch_size, shuffle=False,  # (test_sampler is None),
+            num_workers=self.workers, pin_memory=True, sampler=test_sampler)
 
     def init_logger(self):
         self.writer = SummaryWriter(
@@ -167,7 +198,28 @@ class trainer():
                        test_loss_G=np.mean(generator_loss_test),
                        test_loss_D=np.mean(discriminator_loss_test)))
 
+    def init_parallel(self):
+        if self.parallel:
+            self.rank = self.nr * self.gpus + self.gpu
+
+            dist.init_process_group(
+                backend='nccl',
+                init_method='env://',
+                world_size=self.world_size,
+                rank=self.rank
+            )
+            torch.manual_seed(0)
+            self.device = torch.device(f"cuda:{self.gpu}")
+        else:
+            dist.init_process_group(
+                backend='nccl',
+                init_method='env://',
+                world_size=1,
+                rank=0
+            )
+
     def train(self):
+        self.init_parallel()
         self.init_model()
         self.init_data_loader()
         self.init_mask_loader()
@@ -214,7 +266,6 @@ class trainer():
             for i, (image, mask) in enumerate(zip(self.train_data_loader, self.train_mask_loader)):
                 self.train_batch(i, epoch, image, mask, generator_loss, discriminator_loss)
                 progress.update(1)
-
         return generator_loss, discriminator_loss
 
     def eval_epoch(self, epoch):
@@ -227,7 +278,6 @@ class trainer():
 
                     self.eval_batch(i, epoch, image, mask, generator_loss, discriminator_loss)
                     progress.update(1)
-
         return generator_loss, discriminator_loss
 
     def train_batch(self, i, epoch, image, mask, generator_loss, discriminator_loss):

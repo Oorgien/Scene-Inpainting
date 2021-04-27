@@ -188,7 +188,7 @@ class RelativisticAdvLoss(nn.Module):
         return L_adv
 
 
-def gram_matrix(input_tensor):
+def gram_matrix(input_tensor, device=torch.device("cuda")):
     """
     Compute Gram matrix
 
@@ -201,7 +201,7 @@ def gram_matrix(input_tensor):
     features_t = features.transpose(1, 2)
 
     # more efficient and formal way to avoid underflow for mixed precision training
-    input = torch.zeros(b, ch, ch).type(features.type())
+    input = torch.zeros(b, ch, ch).type(features.type()).to(device)
     gram = torch.baddbmm(input, features, features_t, beta=0, alpha=1. / (ch * h * w), out=None)
 
     # naive way to avoid underflow for mixed precision training

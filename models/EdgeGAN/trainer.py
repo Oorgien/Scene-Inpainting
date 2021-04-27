@@ -14,6 +14,7 @@ import torchvision.transforms as transforms
 from easydict import EasyDict as edict
 from PIL import Image
 from sklearn.model_selection import train_test_split
+from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -37,11 +38,17 @@ class EdgeGanTrainer(trainer):
                                              test_mask_dataset)
 
     def init_model(self):
-        self.model_G = InpaintingGenerator().to(self.device)
+        self.model_G = DistributedDataParallel(
+            InpaintingGenerator(device=self.device).to(self.device),
+            device_ids=[self.gpu]
+        )
         self.optimizer_G = torch.optim.Adam(self.model_G.parameters(),
                                             betas=self.adam_betas_G,
                                             lr=self.learning_rate_G)
-        self.model_D = InpaintingDiscriminator(self.device).to(self.device)
+        self.model_D = DistributedDataParallel(
+            InpaintingDiscriminator(self.device).to(self.device),
+            device_ids=[self.gpu]
+        )
         self.optimizer_D = torch.optim.Adam(self.model_D.parameters(),
                                             betas=self.adam_betas_D,
                                             lr=self.learning_rate_D)
@@ -74,11 +81,6 @@ class EdgeGanTrainer(trainer):
     def train_batch(self, i, epoch, image, mask, generator_loss, discriminator_loss):
         if (image.shape[0] != mask.shape[0]):
             mask = mask[:image.shape[0]]
-        # print("variance", torch.var(image, dim=(2,3)),
-        #       "mean", torch.mean(image, dim=(2,3)),
-        #       "max", image.max(3, True)[0].max(2, True)[0],
-        #       "min", image.min(3, True)[0].min(2, True)[0]
-        #       )
         # ------------------
         #  Train Generator
         # ------------------
@@ -96,11 +98,7 @@ class EdgeGanTrainer(trainer):
         target = image.clone()
 
         # Prediction
-        predicted_coarse = self.model_G.forward_coarse(input)
-        predicted_coarse = masked_image + torch.mul(predicted_coarse,
-                                                    (torch.ones(mask_3x.shape).to(self.device) - mask_3x))
-        predicted_fine = self.model_G.forward_fine(torch.cat((predicted_coarse, mask), dim=1))
-        predicted_fine = masked_image + torch.mul(predicted_fine, (torch.ones(mask_3x.shape).to(self.device) - mask_3x))
+        predicted_coarse, predicted_fine = self.model_G(input, masked_image, mask_3x, mask)
 
         target_cropped, predicted_cropped = self.local_crop(target, predicted_fine)
 

@@ -6,6 +6,7 @@ import torch.nn as nn
 
 from base_model.base_blocks import (DMFB, SelfAttention, _activation,
                                     conv_block, get_pad, upconv_block)
+from utils import get_pad_tp
 
 from . import blocks as B
 
@@ -54,14 +55,13 @@ class InpaintingGenerator(nn.Module):
     def __init__(self, in_nc=4, out_nc=3, nf=48,
                  norm="in", activation="relu",
                  res_blocks_num=8,
-                 dmfb_block_num=4):
+                 dmfb_block_num=4, device=torch.device('cuda')):
         """
         :param in_nc: in channels number
         :param out_nc: out channels number
         :param nf: number of intermediete features
         :param res_blocks_num: number of Residual blocks in fine and coarse roots
         :param dmfb_block_num: nunumber of DMFB blocks in fine route
-        :param init_weights: what weight initialization to use
         """
 
         super(InpaintingGenerator, self).__init__()
@@ -125,13 +125,15 @@ class InpaintingGenerator(nn.Module):
             conv_block(nf * 4, nf * 4, kernel_size=3, stride=1, padding=1,
                        norm=norm, activation=activation),
             # [96, 128, 128]
-            upconv_block(nf * 4, nf * 2, kernel_size=3, upconv_stride=2, padding=1,
+            upconv_block(nf * 4, nf * 2, kernel_size=3, stride=2, output_padding=1,
+                         padding=get_pad_tp(64, 64, [1, 1], [3, 3], [2, 2], [1, 1]),
                          norm=norm, activation=activation),
             # [96, 128, 128]
             conv_block(nf * 4, nf * 2, kernel_size=3, stride=1, padding=1,
                        norm=norm, activation=activation),
             # [48, 256, 256]
-            upconv_block(nf * 2, nf, kernel_size=3, upconv_stride=2, padding=1,
+            upconv_block(nf * 2, nf, kernel_size=3, stride=2, output_padding=1,
+                         padding=get_pad_tp(128, 128, [1, 1], [3, 3], [2, 2], [1, 1]),
                          norm=norm, activation=activation),
             # [48, 256, 256]
             conv_block(nf * 2, nf, kernel_size=3, stride=1, padding=1,
@@ -148,13 +150,15 @@ class InpaintingGenerator(nn.Module):
             conv_block(nf * 4, nf * 4, kernel_size=3, stride=1, padding=1,
                        norm=norm, activation=activation),
             # [96, 128, 128]
-            upconv_block(nf * 4, nf * 2, kernel_size=3, upconv_stride=2, padding=1,
+            upconv_block(nf * 4, nf * 2, kernel_size=3, stride=2, output_padding=1,
+                         padding=get_pad_tp(64, 64, [1, 1], [3, 3], [2, 2], [1, 1]),
                          norm=norm, activation=activation),
             # [96, 128, 128]
             conv_block(nf * 4, nf * 2, kernel_size=3, stride=1, padding=1,
                        norm=norm, activation=activation),
             # [48, 256, 256]
-            upconv_block(nf * 2, nf, kernel_size=3, upconv_stride=2, padding=1,
+            upconv_block(nf * 2, nf, kernel_size=3, stride=2, output_padding=1,
+                         padding=get_pad_tp(128, 128, [1, 1], [3, 3], [2, 2], [1, 1]),
                          norm=norm, activation=activation),
             # [48, 256, 256]
             conv_block(nf * 2, nf, kernel_size=3, stride=1, padding=1,
@@ -172,6 +176,8 @@ class InpaintingGenerator(nn.Module):
             conv_block(nf // 2, out_nc, 3, stride=1, padding=1,
                        norm='none', activation='tanh')
         )
+
+        self.device = device
 
     def forward_coarse(self, x):
         # Coarse root
@@ -207,6 +213,14 @@ class InpaintingGenerator(nn.Module):
         x = self.out_fine(x)
 
         return x
+
+    def forward(self, x, masked_image, mask_3x, mask):
+        predicted_coarse = self.forward_coarse(x)
+        predicted_coarse = masked_image + torch.mul(predicted_coarse,
+                                                    (torch.ones(mask_3x.shape).to(self.device) - mask_3x))
+        predicted_fine = self.forward_fine(torch.cat((predicted_coarse, mask), dim=1))
+        predicted_fine = masked_image + torch.mul(predicted_fine, (torch.ones(mask_3x.shape).to(self.device) - mask_3x))
+        return predicted_coarse, predicted_fine
 
 
 class InpaintingDiscriminator(nn.Module):

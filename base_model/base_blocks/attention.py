@@ -256,15 +256,15 @@ class ContextualAttention(nn.Module):
 
         m = m.view(m_shape[0], m_shape[1], self.ksize, self.ksize, -1)  # [batch_size, 1, k, k, L]
         m = m.permute(0, 4, 1, 2, 3)  # m shape: [batch_size, L, C, k, k]
-        m = m[0]  # m shape: [L, C, k, k]
+        # m = m[0]  # m shape: [L, C, k, k]
 
         # 0 for patches where all values are 0
         # 1 for patches with non-zero mean
-        # mm shape: [L, 1, 1, 1]
-        mm = (reduce_mean(m, axis=[1, 2, 3], keepdim=True) == 1.).to(torch.float32)
+        # mm shape: [batch_size, L, 1, 1, 1]
 
-        # mm shape: [1, L, 1, 1]
-        mm = mm.permute(1, 0, 2, 3)
+        mm = (reduce_mean(m, axis=[2, 3, 4], keepdim=True) == 1.).to(torch.float32)
+        # mm shape: [batch_size, 1, L, 1, 1]
+        mm = mm.permute(0, 2, 1, 3, 4)
 
         y = []
         offsets = []
@@ -275,7 +275,7 @@ class ContextualAttention(nn.Module):
         if self.device:
             fuse_weight = fuse_weight.to(self.device)
         EPS = torch.FloatTensor([1e-4]).to(self.device)
-        for xi, wi, raw_wi in zip(f_groups, w_groups, raw_w_groups):
+        for xi, wi, raw_wi, mi in zip(f_groups, w_groups, raw_w_groups, mm):
             """
             O => output channel as a conv filter
             I => input channel as a conv filter
@@ -315,9 +315,9 @@ class ContextualAttention(nn.Module):
 
             yi = yi.view(1, b_shape[2] * b_shape[3], f_shape[2], f_shape[3])  # (B=1, C=32*32, H=32, W=32)
             # softmax to match
-            yi = yi * mm
+            yi = yi * mi
             yi = F.softmax(yi * scale, dim=1)
-            yi = yi * mm  # [1, L, H, W]
+            yi = yi * mi  # [1, L, H, W]
             offset = torch.argmax(yi, dim=1, keepdim=True)  # 1*1*H*W
             if b_shape != f_shape:
                 # Normalize the offset value to match foreground dimension

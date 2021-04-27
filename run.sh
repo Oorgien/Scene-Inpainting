@@ -5,3 +5,4 @@ elif [ $1 -eq 0 ]; then
 	echo "Autopep8 and isort disabled"
 fi
 python main.py -cfg 'configs/configs_MadfGAN/config_bce_init.yaml' -m 'train'
+#python main.py -cfg 'configs/configs_EdgeGAN/config_bce_two_gens_imagenet.yaml' -m 'train'

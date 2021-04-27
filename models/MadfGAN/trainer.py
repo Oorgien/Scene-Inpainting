@@ -14,6 +14,8 @@ import torchvision.transforms as transforms
 from easydict import EasyDict as edict
 from PIL import Image
 from sklearn.model_selection import train_test_split
+from torch import nn
+from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -37,17 +39,24 @@ class MADFGanTrainer(trainer):
                                              test_mask_dataset)
 
     def init_model(self):
-        self.model_G = InpaintingGenerator(
-            image_inc_coarse=3, mask_inc_coarse=1,
-            image_inc_fine=4, nc_fine=32, device=self.device
-        ).to(self.device)
+        self.model_G = DistributedDataParallel(
+            InpaintingGenerator(
+                image_inc_coarse=3, mask_inc_coarse=1,
+                image_inc_fine=4, nc_fine=32,
+                device=self.device).to(self.device),
+            device_ids=[self.gpu],
+            find_unused_parameters=True
+        )
 
         self.optimizer_G = torch.optim.Adam(
             self.model_G.parameters(),
             betas=self.adam_betas_G,
             lr=self.learning_rate_G
         )
-        self.model_D = InpaintingDiscriminator(device=self.device).to(self.device)
+        self.model_D = DistributedDataParallel(
+            InpaintingDiscriminator(device=self.device).to(self.device),
+            device_ids=[self.gpu]
+        )
 
         self.optimizer_D = torch.optim.Adam(
             self.model_D.parameters(),
@@ -104,13 +113,7 @@ class MADFGanTrainer(trainer):
         target = image.clone()
 
         # Prediction
-        predicted_coarse = self.model_G.forward_coarse(masked_image, mask)
-        predicted_coarse = predicted_coarse[-1]
-        predicted_coarse = masked_image + torch.mul(predicted_coarse,
-                                                    (torch.ones(mask_3x.shape).to(self.device) - mask_3x))
-
-        predicted_fine, offset = self.model_G.forward_fine(torch.cat((predicted_coarse, mask), dim=1), mask)
-        predicted_fine = masked_image + torch.mul(predicted_fine, (torch.ones(mask_3x.shape).to(self.device) - mask_3x))
+        predicted_coarse, predicted_fine, flow = self.model_G(masked_image, mask_3x, mask)
 
         target_cropped, predicted_cropped = self.local_crop(target, predicted_fine)
 
@@ -208,13 +211,7 @@ class MADFGanTrainer(trainer):
         target = image.clone()
 
         # Prediction
-        predicted_coarse = self.model_G.forward_coarse(masked_image, mask)
-        predicted_coarse = predicted_coarse[-1]
-        predicted_coarse = masked_image + torch.mul(predicted_coarse,
-                                                    (torch.ones(mask_3x.shape).to(self.device) - mask_3x))
-
-        predicted_fine, flow = self.model_G.forward_fine(torch.cat((predicted_coarse, mask), dim=1), mask)
-        predicted_fine = masked_image + torch.mul(predicted_fine, (torch.ones(mask_3x.shape).to(self.device) - mask_3x))
+        predicted_coarse, predicted_fine, flow = self.model_G(masked_image, mask_3x, mask)
 
         target_cropped, predicted_cropped = self.local_crop(target, predicted_fine)
 
@@ -273,8 +270,8 @@ class MADFGanTrainer(trainer):
 
             img = (predicted_fine.cpu() * std + mean)
 
-            for k, (im, m, flow) in enumerate(zip(img, mask, offset)):
+            for k, (im, m, flow_i) in enumerate(zip(img, mask, flow)):
                 t(im).save(f'{os.path.join(self.eval_dir, self.model_log_name)}/eval_{epoch}/batch{i}_{k}_img.jpg')
-                t(flow).save(f'{os.path.join(self.eval_dir, self.model_log_name)}/eval_{epoch}/batch{i}_{k}_flow.jpg')
+                t(flow_i).save(f'{os.path.join(self.eval_dir, self.model_log_name)}/eval_{epoch}/batch{i}_{k}_flow.jpg')
                 t(m.cpu()).save(
                     f'{os.path.join(self.eval_dir, self.model_log_name)}/eval_{epoch}/batch{i}_{k}_mask.jpg')
