@@ -147,56 +147,58 @@ class trainer():
             assert False
 
     def save_checkpoint(self, state, is_best, filename='checkpoint.pth.tar'):
-        torch.save(state, os.path.join(self.checkpoint_dir + self.model_log_name, filename))
-        if is_best:
-            shutil.copyfile(os.path.join(self.checkpoint_dir + self.model_log_name, filename),
-                            os.path.join(self.checkpoint_dir + self.model_log_name, 'model_best.pth.tar'))
+        if self.gpu == 0:
+            torch.save(state, os.path.join(self.checkpoint_dir + self.model_log_name, filename))
+            if is_best:
+                shutil.copyfile(os.path.join(self.checkpoint_dir + self.model_log_name, filename),
+                                os.path.join(self.checkpoint_dir + self.model_log_name, 'model_best.pth.tar'))
 
     def save_state(self, epoch, is_best):
-        """
-        :param epoch: training epoch
-        :param is_best: bool indicator of whether current state is the best or not
-        """
-        if epoch % self.checkpoint_interval == 0:
-            self.save_checkpoint({
-                'epoch': epoch + 1,
-                'state_dict_G': self.model_G.state_dict(),
-                'state_dict_D': self.model_D.state_dict(),
-                'best_test_loss': self.best_test_loss,
-                'optimizer_G': self.optimizer_G.state_dict(),
-                'optimizer_D': self.optimizer_D.state_dict(),
-            }, is_best, filename='checkpoint.pth.tar')
+        if self.gpu == 0:
+            """
+            :param epoch: training epoch
+            :param is_best: bool indicator of whether current state is the best or not
+            """
+            if epoch % self.checkpoint_interval == 0:
+                self.save_checkpoint({
+                    'epoch': epoch + 1,
+                    'state_dict_G': self.model_G.state_dict(),
+                    'state_dict_D': self.model_D.state_dict(),
+                    'best_test_loss': self.best_test_loss,
+                    'optimizer_G': self.optimizer_G.state_dict(),
+                    'optimizer_D': self.optimizer_D.state_dict(),
+                }, is_best, filename='checkpoint.pth.tar')
 
     def log_after_epoch(self, epoch, i,
                         generator_loss_train,
                         generator_loss_test,
                         discriminator_loss_train,
                         discriminator_loss_test):
+        if self.gpu == 0:
+            with open(self.logger_fname, "a") as log_file:
+                log_file.write('Epoch: [{0}][{1}/{2}]\t'
+                               'Time {time:.3f} \n'
+                               'Loss: Train generator - {train_loss_G:.4f} '
+                               'Train discriminator - {train_loss_D:.4f} '
+                               'Test generator - {test_loss_G:.4f} '
+                               'Test discriminator - {test_loss_D:.4f}\n'.format(
+                                   epoch + 1, i + 1, self.epochs, time=time.time() - self.start,
+                                   train_loss_G=np.mean(generator_loss_train),
+                                   train_loss_D=np.mean(discriminator_loss_train),
+                                   test_loss_G=np.mean(generator_loss_test),
+                                   test_loss_D=np.mean(discriminator_loss_test)))
 
-        with open(self.logger_fname, "a") as log_file:
-            log_file.write('Epoch: [{0}][{1}/{2}]\t'
-                           'Time {time:.3f} \n'
-                           'Loss: Train generator - {train_loss_G:.4f} '
-                           'Train discriminator - {train_loss_D:.4f} '
-                           'Test generator - {test_loss_G:.4f} '
-                           'Test discriminator - {test_loss_D:.4f}\n'.format(
-                               epoch + 1, i + 1, self.epochs, time=time.time() - self.start,
-                               train_loss_G=np.mean(generator_loss_train),
-                               train_loss_D=np.mean(discriminator_loss_train),
-                               test_loss_G=np.mean(generator_loss_test),
-                               test_loss_D=np.mean(discriminator_loss_test)))
-
-        tqdm.write('Epoch: [{0}][{1}/{2}]\t'
-                   'Time {time:.3f}\t'
-                   'Loss: Train generator - {train_loss_G:.4f} '
-                   'Train discriminator - {train_loss_D:.4f} '
-                   'Test generator - {test_loss_G:.4f} '
-                   'Test discriminator - {test_loss_D:.4f}\n'.format(
-                       epoch + 1, i + 1, self.epochs, time=time.time() - self.start,
-                       train_loss_G=np.mean(generator_loss_train),
-                       train_loss_D=np.mean(discriminator_loss_train),
-                       test_loss_G=np.mean(generator_loss_test),
-                       test_loss_D=np.mean(discriminator_loss_test)))
+            tqdm.write('Epoch: [{0}][{1}/{2}]\t'
+                       'Time {time:.3f}\t'
+                       'Loss: Train generator - {train_loss_G:.4f} '
+                       'Train discriminator - {train_loss_D:.4f} '
+                       'Test generator - {test_loss_G:.4f} '
+                       'Test discriminator - {test_loss_D:.4f}\n'.format(
+                           epoch + 1, i + 1, self.epochs, time=time.time() - self.start,
+                           train_loss_G=np.mean(generator_loss_train),
+                           train_loss_D=np.mean(discriminator_loss_train),
+                           test_loss_G=np.mean(generator_loss_test),
+                           test_loss_D=np.mean(discriminator_loss_test)))
 
     def init_parallel(self):
         if self.parallel:

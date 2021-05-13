@@ -117,7 +117,7 @@ class MADFGanTrainer(trainer):
 
         target_cropped, predicted_cropped = self.local_crop(target, predicted_fine)
 
-        if self.debug:
+        if self.debug and self.gpu == 0:
             if not os.path.isdir(f'{os.path.join(self.eval_dir, self.model_log_name)}/eval_epoch_{epoch}_batch_{i}'):
                 os.makedirs(f'{os.path.join(self.eval_dir, self.model_log_name)}/eval_epoch_{epoch}_batch_{i}')
             for k, img in enumerate(predicted_fine.detach().cpu().numpy()):
@@ -261,7 +261,7 @@ class MADFGanTrainer(trainer):
         # Logging
         self.writer.add_scalar('Discriminator train loss', loss_D, counter)
 
-        if (i % self.sample_interval == 0):
+        if (i % self.sample_interval == 0 and self.gpu == 0):
             if not os.path.isdir(f'{os.path.join(self.eval_dir, self.model_log_name)}/eval_{epoch}'):
                 os.makedirs(f'{os.path.join(self.eval_dir, self.model_log_name)}/eval_{epoch}')
             t = transforms.ToPILImage()

@@ -50,6 +50,7 @@ def main(args):
 
         if not args.parallel:
             args.device = torch.device(f"cuda:{args.gpu_id}" if torch.cuda.is_available() else "cpu")
+            args.gpu = 0
         elif args.parallel:
             print(f"Multiple GPU devices found: {torch.cuda.device_count()}")
             args.device = torch.device(f"cuda" if torch.cuda.is_available() else "cpu")
