@@ -17,6 +17,7 @@ from sklearn.model_selection import train_test_split
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
+from torchsummary import summary
 from tqdm import tqdm
 
 from base_model import RelativisticAdvLoss, trainer

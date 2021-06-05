@@ -15,10 +15,10 @@ from data.base_dataset import BaseImageDataset, BaseMaskDataset
 
 
 class CelebaHQDataset(BaseImageDataset):
-    def __init__(self, im_size, mode, image_dir, image_list, normalization="tanh"):
+    def __init__(self, im_size, mode, image_dir, image_list, normalization="tanh", expand=1):
         super(CelebaHQDataset, self).__init__(im_size, normalization)
         self.image_dir = image_dir
-        self.image_list = image_list
+        self.image_list = image_list * expand
         self.mode = mode
 
     def __len__(self):

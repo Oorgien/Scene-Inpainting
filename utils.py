@@ -9,6 +9,7 @@ import torchvision.utils as vutils
 import yaml
 from easydict import EasyDict as edict
 from matplotlib import pyplot as plt
+from torch import distributed as dist
 
 
 def show(img):

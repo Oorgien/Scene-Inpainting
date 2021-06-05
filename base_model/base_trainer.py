@@ -87,8 +87,9 @@ class trainer():
             num_workers=self.workers, pin_memory=True, sampler=test_sampler)
 
     def init_logger(self):
-        self.writer = SummaryWriter(
-            log_dir=os.path.join(self.logdir, self.model_log_name) if self.logdir != '' else None)
+        if self.gpu == 0:
+            self.writer = SummaryWriter(
+                log_dir=os.path.join(self.logdir, self.model_log_name) if self.logdir != '' else None)
 
     def set_to_train(self):
         self.model_G.train()
@@ -123,8 +124,8 @@ class trainer():
 
         :param epoch: current epoch
         """
-        lr_D = self.learning_rate_D * (0.5 ** ((epoch + 1) // self.lr_interval_D))
-        lr_G = self.learning_rate_G * (0.5 ** ((epoch + 1) // self.lr_interval_G))
+        lr_D = self.learning_rate_D * (self.lr_coef_G ** ((epoch + 1) // self.lr_interval_D))
+        lr_G = self.learning_rate_G * (self.lr_coef_D ** ((epoch + 1) // self.lr_interval_G))
         for param_group in self.optimizer_G.param_groups:
             param_group['lr'] = lr_G
         for param_group in self.optimizer_D.param_groups:
@@ -144,7 +145,7 @@ class trainer():
                   .format(self.resume, checkpoint['epoch']))
         else:
             print("=> no checkpoint found at '{}'".format(self.resume))
-            assert False
+            assert False, "=> no checkpoint found at '{}'".format(self.resume)
 
     def save_checkpoint(self, state, is_best, filename='checkpoint.pth.tar'):
         if self.gpu == 0:
@@ -234,7 +235,6 @@ class trainer():
                 if self.dataset == 'celeba-hq':
                     self.init_mask_loader()
                 self.adjust_learning_rate(epoch)
-
                 # train for one epoch
                 generator_loss_train, discriminator_loss_train = self.train_epoch(epoch)
 
@@ -257,7 +257,14 @@ class trainer():
                                      discriminator_loss_test)
 
     def test(self):
-        pass
+        self.init_parallel()
+        self.init_model()
+        self.init_data_loader()
+        self.init_mask_loader()
+        self.init_logger()
+
+        if self.resume:
+            self.resume_training()
 
     def train_epoch(self, epoch):
         # switch to train mode

@@ -1,0 +1,29 @@
+name: ML_2
+
+channels:
+  - pytorch 
+  - nvidia
+  - anaconda 
+  - conda-forge
+dependencies:
+  - python=3.7 
+  - pip
+  
+  - pytorch 
+  - torchvision
+  - torchaudio
+  - nvidia-apex
+  - numpy
+  - scikit-learn
+  - matplotlib
+  
+  - cudnn
+  #- tensorflow-gpu
+  
+  - pip:
+    - easydict
+    - opencv-python
+    - tensorboard
+    - torchsummary
+    - tensorflow
+    
