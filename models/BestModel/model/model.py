@@ -4,7 +4,7 @@ from torchsummary import summary
 
 from base_model.base_blocks import (DMFB, ContextualAttention, HypergraphConv,
                                     SelfAttention, _activation, conv_block,
-                                    get_pad, upconv_block)
+                                    get_pad, upconv_block, SNBlock, SobelFilter)
 from utils import get_pad_tp
 
 from . import blocks as B
@@ -276,6 +276,66 @@ class InpaintingGenerator(nn.Module):
         predicted_fine = masked_image + torch.mul(predicted_fine, (torch.ones(mask_3x.shape).to(self.device) - mask_3x))
         return predicted_coarse, predicted_fine
 
+class InpaintingDiscriminator(nn.Module):
+    def __init__(self, device, in_nc=3, kernel_size=4, nf=48, im_size=256):
+        """
+        :param in_nc: number of in channels
+        :param kernel_size: kernel size
+        :param nf: number of convolution filters after 1 layer
+        """
+        super(InpaintingDiscriminator, self).__init__()
+
+        self.patch_dis = nn.ModuleList([
+            SNBlock(in_channels=in_nc, out_channels=nf, kernel_size=kernel_size, stride=2,
+                      padding=get_pad(im_size, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
+            SNBlock(in_channels=nf, out_channels=nf * 2, kernel_size=kernel_size, stride=2,
+                      padding=get_pad(im_size//2, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
+            SNBlock(in_channels=nf * 2, out_channels=nf * 2, kernel_size=kernel_size, stride=2,
+                      padding=get_pad(im_size//4, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
+            SNBlock(in_channels=nf * 2, out_channels=nf * 4, kernel_size=kernel_size, stride=2,
+                      padding=get_pad(im_size//8, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
+            SNBlock(in_channels=nf * 4, out_channels=nf * 4, kernel_size=kernel_size, stride=2,
+                      padding=get_pad(im_size//16, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
+            SNBlock(in_channels=nf * 4, out_channels=nf * 4, kernel_size=kernel_size, stride=2,
+                      padding=get_pad(im_size//32, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
+            nn.Flatten(),
+            nn.Linear(nf * 4 * im_size//64 * im_size//64, 512)
+        ])
+        self.flat = nn.Flatten()
+
+        self.edge_dis = nn.Sequential(
+            SobelFilter(device, in_nc=3, filter_c=1,
+                          padding=get_pad(256, 3, 1), stride=1),
+            SNBlock(in_channels=2, out_channels=nf // 2, kernel_size=kernel_size, stride=4,
+                      padding=get_pad(im_size, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
+            SNBlock(in_channels=nf // 2, out_channels=nf, kernel_size=kernel_size, stride=2,
+                      padding=get_pad(im_size//4, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
+            SNBlock(in_channels=nf, out_channels=nf * 2, kernel_size=kernel_size, stride=2,
+                      padding=get_pad(im_size//8, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
+            SNBlock(in_channels=nf * 2, out_channels=nf * 4, kernel_size=kernel_size, stride=2,
+                      padding=get_pad(im_size//16, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
+            SNBlock(in_channels=nf * 4, out_channels=nf * 4, kernel_size=kernel_size, stride=2,
+                      padding=get_pad(im_size//32, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
+            SNBlock(in_channels=nf * 4, out_channels=nf * 4, kernel_size=kernel_size, stride=2,
+                      padding=get_pad(im_size//64, kernel_size, 2), norm='in', activation='relu', pad_type='zero'),
+            nn.Flatten(),
+            nn.Linear(nf * 4 * im_size//128 * im_size//128, 512)
+        )
+
+        self.out = nn.Sequential(
+            _activation('relu'),
+            nn.Linear(1024, 1)
+        )
+
+    def forward(self, x, x_local):
+        patch_features = []
+        patch_features.append(x_local)
+        for layer in self.patch_dis:
+            patch_features.append(layer(patch_features[-1]))
+        patch_out = patch_features[-1]
+        edge_out = self.edge_dis(x)
+        out = self.out(torch.cat([patch_out, edge_out], dim=-1))
+        return out, patch_features[1:7]
 
 def test_best_model(device_id):
     device = torch.device(f"cuda:{device_id}" if torch.cuda.is_available() else "cpu")

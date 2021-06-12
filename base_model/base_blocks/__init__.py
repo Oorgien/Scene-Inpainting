@@ -4,3 +4,4 @@ from .base_blocks import (_activation, _norm, _padding, conv_block, get_pad,
 from .dmfb import *
 from .hypergraph import *
 from .spectral_norm import *
+from .filters import *

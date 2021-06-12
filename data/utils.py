@@ -15,27 +15,39 @@ def prepare_data(args):
     test_images = sorted(os.listdir(args.data_test))
 
     im_size = tuple(args.im_size[1:])
+
     expand_train_mask = 1
     expand_test_mask = 1
+
     expand_train_data = 1
     expand_test_data = 1
+
     if args.dataset == 'celeba-hq':
         if args.mask_dataset == 'nvidia':
-            expand_train_data = 1
-            expand_test_data = 4
-        train_data_dataset = CelebaHQDataset(
-            im_size=im_size, image_dir=args.data_train,
-            image_list=train_images, mode='train',
-            normalization=args.data_normalization,
-            expand=expand_train_data)
+            if args.search_params:
+                expand_train_data = args.reduce_train_data
+                expand_test_data = 4
+            else:
+                expand_train_data = 1
+                expand_test_data = 4
+            train_data_dataset = CelebaHQDataset(
+                im_size=im_size, image_dir=args.data_train,
+                image_list=train_images, mode='train',
+                normalization=args.data_normalization,
+                expand=expand_train_data
+            )
 
         test_data_dataset = CelebaHQDataset(
             im_size=im_size, image_dir=args.data_test,
             image_list=test_images, mode='test',
             normalization=args.data_normalization,
-            expand=expand_test_data)
+            expand=expand_test_data
+        )
 
     elif args.dataset == 'imagenet':
+        if args.mask_dataset == 'nvidia':
+            expand_train_mask = 9
+            expand_test_mask = 5
         train_data_dataset = ImageNetDataset(
             im_size, txt_files_dir=args.txt_files_dir, train_dir=args.data_train,
             val_dir=args.data_val, test_dir=args.data_test, mode='train',
@@ -44,8 +56,6 @@ def prepare_data(args):
             im_size, txt_files_dir=args.txt_files_dir, train_dir=args.data_train,
             val_dir=args.data_val, test_dir=args.data_test, mode='test',
             normalization=args.data_normalization)
-        expand_train_mask = 9
-        expand_test_mask = 5
     else:
         raise NameError(f"Unsupported dataset {args.dataset} name")
 

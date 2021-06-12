@@ -5,7 +5,7 @@ import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
 from torch.nn import Parameter
-
+from .base_blocks import conv_block
 
 class SpectralNorm(nn.Module):
     def __init__(self, module, name='weight', power_iterations=1):
@@ -64,3 +64,25 @@ class SpectralNorm(nn.Module):
     def forward(self, *args):
         self._update_u_v()
         return self.module.forward(*args)
+
+
+class SNBlock(conv_block):
+    def __init__(self, *args, **kwargs):
+        """
+        :param in_channels:
+        :param out_channels:
+        :param kernel_size:
+        :param stride:
+        :param dilation:
+        :param groups:
+        :param bias:
+        :param padding:
+        :param norm:
+        :param activation:
+        :param pad_type:
+        """
+        super(SNBlock, self).__init__(*args, **kwargs)
+        self.conv = torch.nn.utils.spectral_norm(self.conv)
+
+    def forward(self, x):
+        return super(SNBlock, self).forward(x)

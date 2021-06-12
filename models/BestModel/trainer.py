@@ -23,9 +23,9 @@ from torchsummary import summary
 from tqdm import tqdm
 
 from base_model import RelativisticAdvLoss, trainer
-from models.EdgeGAN.model import FineEdgeLoss, FmLoss, InpaintingDiscriminator
+from models.EdgeGAN.model import FineEdgeLoss, FmLoss
 
-from .model import InpaintingGenerator
+from .model import InpaintingGenerator, InpaintingDiscriminator
 
 
 class BestModelTrainer(trainer):
@@ -57,7 +57,7 @@ class BestModelTrainer(trainer):
             lr=self.learning_rate_G
         )
         self.model_D = DistributedDataParallel(
-            InpaintingDiscriminator(device=self.device).to(self.device),
+            InpaintingDiscriminator(device=self.device, im_size=self.im_size[-1]).to(self.device),
             device_ids=[self.gpu]
         )
 
@@ -244,14 +244,19 @@ class BestModelTrainer(trainer):
 
         # Logging
         counter = epoch * len(self.train_data_loader) + i
+        mask_groups = ['(0.01, 0.1]', '(0.1, 0.2]', '(0.2, 0.3]', '(0.3, 0.4]', '(0.4, 0.5]', '(0.5, 0.6]']
+        mask_grop_id = (i * self.batch_size * (self.gpus if self.parallel else 1)) // 2000
+        if mask_grop_id > 5:
+            mask_grop_id = 5
+        mask_group = mask_groups[mask_grop_id]
         if self.gpu == 0:
-            self.writer.add_scalar('Generator test loss', loss_G, counter)
-            self.writer.add_scalar('Generator test l1 loss', l1_loss, counter)
-            self.writer.add_scalar('Generator test frequency loss', freq_loss, counter)
-            self.writer.add_scalar('Generator test content loss', content_loss, counter)
-            self.writer.add_scalar('Generator test style loss', style_loss, counter)
-            self.writer.add_scalar('Generator test adv loss', adv_loss_G, counter)
-            self.writer.add_scalar('Generator test feature matching loss', fm_loss, counter)
+            self.writer.add_scalar(f'Generator test {mask_group} loss', loss_G, counter)
+            self.writer.add_scalar(f'Generator test {mask_group} l1 loss', l1_loss, counter)
+            self.writer.add_scalar(f'Generator test {mask_group} frequency loss', freq_loss, counter)
+            self.writer.add_scalar(f'Generator test {mask_group} content loss', content_loss, counter)
+            self.writer.add_scalar(f'Generator test {mask_group} style loss', style_loss, counter)
+            self.writer.add_scalar(f'Generator test {mask_group} adv loss', adv_loss_G, counter)
+            self.writer.add_scalar(f'Generator test {mask_group} feature matching loss', fm_loss, counter)
 
         # ---------------------
         #  Test Discriminator
@@ -267,7 +272,7 @@ class BestModelTrainer(trainer):
 
         # Logging
         if self.gpu == 0:
-            self.writer.add_scalar('Discriminator train loss', loss_D, counter)
+            self.writer.add_scalar(f'Discriminator test {mask_group} loss', loss_D, counter)
 
         if (i % self.sample_interval == 0 and self.gpu == 0):
             if not os.path.isdir(f'{os.path.join(self.eval_dir, self.model_log_name)}/eval_{epoch}'):
@@ -282,300 +287,6 @@ class BestModelTrainer(trainer):
                 t(im).save(f'{os.path.join(self.eval_dir, self.model_log_name)}/eval_{epoch}/batch{i}_{k}_img.jpg')
                 t(m.cpu()).save(
                     f'{os.path.join(self.eval_dir, self.model_log_name)}/eval_{epoch}/batch{i}_{k}_mask.jpg')
-
-    def test(self):
-        super(BestModelTrainer, self).test()
-
-        ssim = np.zeros((6, 1))
-        psnr = np.zeros((6, 1))
-        l1 = np.zeros((6, 1))
-        l2 = np.zeros((6, 1))
-
-        mask_group = 0
-        counter = 0
-        group_size = (len(self.test_data_loader) * self.batch_size) // 6
-
-        with torch.no_grad():
-            with tqdm(desc="Batch", total=len(self.test_data_loader)) as progress:
-                for i, (image, mask) in enumerate(zip(self.test_data_loader, self.test_mask_loader)):
-
-                    if (image.shape[0] != mask.shape[0]):
-                        mask = mask[:image.shape[0]]
-
-                    if counter >= 2000:
-                        mask_group += 1
-                        counter = 0
-
-                    # Input images and masks
-                    image = image.to(self.device)
-                    mask = mask.to(self.device)
-
-                    mask_3x = torch.cat((mask, mask, mask), dim=1)
-                    masked_image = torch.mul(image, mask_3x)
-                    target = image.clone()
-
-                    # Prediction
-                    _, predicted_fine = self.model_G(masked_image, mask_3x, mask)
-
-                    # output_images = tf.convert_to_tensor(predicted_fine.cpu().detach().numpy())
-                    # ground_truths = tf.convert_to_tensor(target.cpu().detach().numpy())
-                    output_images = predicted_fine.cpu().detach().numpy()
-                    ground_truths = target.cpu().detach().numpy()
-
-                    for output_image, ground_truth in zip(output_images, ground_truths):
-                        # [0, 1]
-
-                        output_image = tf.convert_to_tensor(np.array(
-                            Image.fromarray(
-                                np.transpose(output_image, axes=[1, 2, 0]) * 127.5 + 127.5, 'RGB')
-                        ) / 255.0, dtype=tf.float32
-                        )
-                        ground_truth = tf.convert_to_tensor(np.array(
-                            Image.fromarray(
-                                np.transpose(ground_truth, axes=[1, 2, 0]) * 127.5 + 127.5, 'RGB')
-                        ) / 255.0, dtype=tf.float32
-                        )
-
-                        ssim[mask_group] += tf.image.ssim_multiscale(output_image, ground_truth, max_val=1.0)
-                        psnr[mask_group] += tf.image.psnr(output_image, ground_truth, max_val=1.0)
-                        l1[mask_group] += tf.math.reduce_mean(tf.math.abs(output_image - ground_truth))
-                        l2[mask_group] += tf.reduce_mean((output_image - ground_truth) ** 2)
-
-                    for idx, (predicted_, target_, mask_, masked_image_) in enumerate(zip(predicted_fine, target, mask_3x, masked_image)):
-                        if not os.path.isdir(f'{os.path.join(self.eval_dir, self.model_log_name)}/result'):
-                            os.makedirs(f'{os.path.join(self.eval_dir, self.model_log_name)}/result')
-
-                        t = transforms.ToPILImage()
-
-                        mean = torch.tensor([0.5, 0.5, 0.5]).view(3, 1, 1)
-                        std = torch.tensor([0.5, 0.5, 0.5]).view(3, 1, 1)
-
-                        predicted_ = (predicted_.cpu() * std + mean)
-                        target_ = (target_.cpu() * std + mean)
-                        mask_ = mask_.cpu()
-                        masked_image_ = (masked_image_.cpu() * std + mean)
-
-                        result = torch.cat([predicted_, target_, mask_, masked_image_], dim=2)
-                        t(result.squeeze(0)).save(
-                            f'{os.path.join(self.eval_dir, self.model_log_name)}'
-                            f'/result/{mask_group+1}_{counter + idx + 1}_result.jpg')
-
-                    progress.update(1)
-                    counter += self.batch_size
-        ssim = ssim / group_size
-        psnr = psnr / group_size
-        l1 = l1 / group_size
-        l2 = l2 / group_size
-
-        print(ssim)
-        print(psnr)
-        print(l1)
-        print(l2)
-
-        # Logging
-        with open(self.logger_fname, "a") as log_file:
-            log_file.write(f'(0.01, 0.1]: \n\t ssim: {ssim[0]} psnr: {psnr[0]} l1: {l1[0]} l2: {l2[0]}\n')
-            log_file.write(f'(0.1, 0.2]: \n\t ssim: {ssim[1]} psnr: {psnr[1]} l1: {l1[1]} l2: {l2[1]}\n')
-            log_file.write(f'(0.2, 0.3]: \n\t ssim: {ssim[2]} psnr: {psnr[2]} l1: {l1[2]} l2: {l2[2]}\n')
-            log_file.write(f'(0.3, 0.4]: \n\t ssim: {ssim[3]} psnr: {psnr[3]} l1: {l1[3]} l2: {l2[3]}\n')
-            log_file.write(f'(0.4, 0.5]: \n\t ssim: {ssim[4]} psnr: {psnr[4]} l1: {l1[4]} l2: {l2[4]}\n')
-            log_file.write(f'(0.5, 0.6]: \n\t ssim: {ssim[5]} psnr: {psnr[5]} l1: {l1[5]} l2: {l2[5]}\n')
-
-    def test(self):
-        super(BestModelTrainer, self).test()
-
-        ssim = np.zeros((6, 1))
-        psnr = np.zeros((6, 1))
-        l1 = np.zeros((6, 1))
-        l2 = np.zeros((6, 1))
-
-        mask_group = 0
-        counter = 0
-        group_size = (len(self.test_data_loader) * self.batch_size) // 6
-
-        with torch.no_grad():
-            with tqdm(desc="Batch", total=len(self.test_data_loader)) as progress:
-                for i, (image, mask) in enumerate(zip(self.test_data_loader, self.test_mask_loader)):
-
-                    if (image.shape[0] != mask.shape[0]):
-                        mask = mask[:image.shape[0]]
-
-                    if counter >= 2000:
-                        mask_group += 1
-                        counter = 0
-
-                    # Input images and masks
-                    image = image.to(self.device)
-                    mask = mask.to(self.device)
-
-                    mask_3x = torch.cat((mask, mask, mask), dim=1)
-                    masked_image = torch.mul(image, mask_3x)
-                    target = image.clone()
-
-                    # Prediction
-                    _, predicted_fine = self.model_G(masked_image, mask_3x, mask)
-
-                    # output_images = tf.convert_to_tensor(predicted_fine.cpu().detach().numpy())
-                    # ground_truths = tf.convert_to_tensor(target.cpu().detach().numpy())
-                    output_images = predicted_fine.cpu().detach().numpy()
-                    ground_truths = target.cpu().detach().numpy()
-
-                    for output_image, ground_truth in zip(output_images, ground_truths):
-                        # [0, 1]
-
-                        output_image = tf.convert_to_tensor(np.array(
-                            Image.fromarray(
-                                np.transpose(output_image, axes=[1, 2, 0]) * 127.5 + 127.5, 'RGB')
-                        ) / 255.0, dtype=tf.float32
-                        )
-                        ground_truth = tf.convert_to_tensor(np.array(
-                            Image.fromarray(
-                                np.transpose(ground_truth, axes=[1, 2, 0]) * 127.5 + 127.5, 'RGB')
-                        ) / 255.0, dtype=tf.float32
-                        )
-
-                        ssim[mask_group] += tf.image.ssim_multiscale(output_image, ground_truth, max_val=1.0)
-                        psnr[mask_group] += tf.image.psnr(output_image, ground_truth, max_val=1.0)
-                        l1[mask_group] += tf.math.reduce_mean(tf.math.abs(output_image - ground_truth))
-                        l2[mask_group] += tf.reduce_mean((output_image - ground_truth) ** 2)
-
-                    for idx, (predicted_, target_, mask_, masked_image_) in enumerate(zip(predicted_fine, target, mask_3x, masked_image)):
-                        if not os.path.isdir(f'{os.path.join(self.eval_dir, self.model_log_name)}/result'):
-                            os.makedirs(f'{os.path.join(self.eval_dir, self.model_log_name)}/result')
-
-                        t = transforms.ToPILImage()
-
-                        mean = torch.tensor([0.5, 0.5, 0.5]).view(3, 1, 1)
-                        std = torch.tensor([0.5, 0.5, 0.5]).view(3, 1, 1)
-
-                        predicted_ = (predicted_.cpu() * std + mean)
-                        target_ = (target_.cpu() * std + mean)
-                        mask_ = mask_.cpu()
-                        masked_image_ = (masked_image_.cpu() * std + mean)
-
-                        result = torch.cat([predicted_, target_, mask_, masked_image_], dim=2)
-                        t(result.squeeze(0)).save(
-                            f'{os.path.join(self.eval_dir, self.model_log_name)}'
-                            f'/result/{mask_group+1}_{counter + idx + 1}_result.jpg')
-
-                    progress.update(1)
-                    counter += self.batch_size
-        ssim = ssim / group_size
-        psnr = psnr / group_size
-        l1 = l1 / group_size
-        l2 = l2 / group_size
-
-        print(ssim)
-        print(psnr)
-        print(l1)
-        print(l2)
-
-        # Logging
-        with open(self.logger_fname, "a") as log_file:
-            log_file.write(f'(0.01, 0.1]: \n\t ssim: {ssim[0]} psnr: {psnr[0]} l1: {l1[0]} l2: {l2[0]}\n')
-            log_file.write(f'(0.1, 0.2]: \n\t ssim: {ssim[1]} psnr: {psnr[1]} l1: {l1[1]} l2: {l2[1]}\n')
-            log_file.write(f'(0.2, 0.3]: \n\t ssim: {ssim[2]} psnr: {psnr[2]} l1: {l1[2]} l2: {l2[2]}\n')
-            log_file.write(f'(0.3, 0.4]: \n\t ssim: {ssim[3]} psnr: {psnr[3]} l1: {l1[3]} l2: {l2[3]}\n')
-            log_file.write(f'(0.4, 0.5]: \n\t ssim: {ssim[4]} psnr: {psnr[4]} l1: {l1[4]} l2: {l2[4]}\n')
-            log_file.write(f'(0.5, 0.6]: \n\t ssim: {ssim[5]} psnr: {psnr[5]} l1: {l1[5]} l2: {l2[5]}\n')
-
-    def test(self):
-        super(BestModelTrainer, self).test()
-
-        ssim = np.zeros((6, 1))
-        psnr = np.zeros((6, 1))
-        l1 = np.zeros((6, 1))
-        l2 = np.zeros((6, 1))
-
-        mask_group = 0
-        counter = 0
-        group_size = (len(self.test_data_loader) * self.batch_size) // 6
-
-        with torch.no_grad():
-            with tqdm(desc="Batch", total=len(self.test_data_loader)) as progress:
-                for i, (image, mask) in enumerate(zip(self.test_data_loader, self.test_mask_loader)):
-
-                    if (image.shape[0] != mask.shape[0]):
-                        mask = mask[:image.shape[0]]
-
-                    if counter >= 2000:
-                        mask_group += 1
-                        counter = 0
-
-                    # Input images and masks
-                    image = image.to(self.device)
-                    mask = mask.to(self.device)
-
-                    mask_3x = torch.cat((mask, mask, mask), dim=1)
-                    masked_image = torch.mul(image, mask_3x)
-                    target = image.clone()
-
-                    # Prediction
-                    _, predicted_fine = self.model_G(masked_image, mask_3x, mask)
-
-                    # output_images = tf.convert_to_tensor(predicted_fine.cpu().detach().numpy())
-                    # ground_truths = tf.convert_to_tensor(target.cpu().detach().numpy())
-                    output_images = predicted_fine.cpu().detach().numpy()
-                    ground_truths = target.cpu().detach().numpy()
-
-                    for output_image, ground_truth in zip(output_images, ground_truths):
-                        # [0, 1]
-
-                        output_image = tf.convert_to_tensor(np.array(
-                            Image.fromarray(
-                                np.transpose(output_image, axes=[1, 2, 0]) * 127.5 + 127.5, 'RGB')
-                        ) / 255.0, dtype=tf.float32
-                        )
-                        ground_truth = tf.convert_to_tensor(np.array(
-                            Image.fromarray(
-                                np.transpose(ground_truth, axes=[1, 2, 0]) * 127.5 + 127.5, 'RGB')
-                        ) / 255.0, dtype=tf.float32
-                        )
-
-                        ssim[mask_group] += tf.image.ssim_multiscale(output_image, ground_truth, max_val=1.0)
-                        psnr[mask_group] += tf.image.psnr(output_image, ground_truth, max_val=1.0)
-                        l1[mask_group] += tf.math.reduce_mean(tf.math.abs(output_image - ground_truth))
-                        l2[mask_group] += tf.reduce_mean((output_image - ground_truth) ** 2)
-
-                    for idx, (predicted_, target_, mask_, masked_image_) in enumerate(zip(predicted_fine, target, mask_3x, masked_image)):
-                        if not os.path.isdir(f'{os.path.join(self.eval_dir, self.model_log_name)}/result'):
-                            os.makedirs(f'{os.path.join(self.eval_dir, self.model_log_name)}/result')
-
-                        t = transforms.ToPILImage()
-
-                        mean = torch.tensor([0.5, 0.5, 0.5]).view(3, 1, 1)
-                        std = torch.tensor([0.5, 0.5, 0.5]).view(3, 1, 1)
-
-                        predicted_ = (predicted_.cpu() * std + mean)
-                        target_ = (target_.cpu() * std + mean)
-                        mask_ = mask_.cpu()
-                        masked_image_ = (masked_image_.cpu() * std + mean)
-
-                        result = torch.cat([predicted_, target_, mask_, masked_image_], dim=2)
-                        t(result.squeeze(0)).save(
-                            f'{os.path.join(self.eval_dir, self.model_log_name)}'
-                            f'/result/{mask_group+1}_{counter + idx + 1}_result.jpg')
-
-                    progress.update(1)
-                    counter += self.batch_size
-        ssim = ssim / group_size
-        psnr = psnr / group_size
-        l1 = l1 / group_size
-        l2 = l2 / group_size
-
-        print(ssim)
-        print(psnr)
-        print(l1)
-        print(l2)
-
-        # Logging
-        with open(self.logger_fname, "a") as log_file:
-            log_file.write(f'(0.01, 0.1]: \n\t ssim: {ssim[0]} psnr: {psnr[0]} l1: {l1[0]} l2: {l2[0]}\n')
-            log_file.write(f'(0.1, 0.2]: \n\t ssim: {ssim[1]} psnr: {psnr[1]} l1: {l1[1]} l2: {l2[1]}\n')
-            log_file.write(f'(0.2, 0.3]: \n\t ssim: {ssim[2]} psnr: {psnr[2]} l1: {l1[2]} l2: {l2[2]}\n')
-            log_file.write(f'(0.3, 0.4]: \n\t ssim: {ssim[3]} psnr: {psnr[3]} l1: {l1[3]} l2: {l2[3]}\n')
-            log_file.write(f'(0.4, 0.5]: \n\t ssim: {ssim[4]} psnr: {psnr[4]} l1: {l1[4]} l2: {l2[4]}\n')
-            log_file.write(f'(0.5, 0.6]: \n\t ssim: {ssim[5]} psnr: {psnr[5]} l1: {l1[5]} l2: {l2[5]}\n')
 
     def test(self):
         super(BestModelTrainer, self).test()

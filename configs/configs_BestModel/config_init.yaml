@@ -11,55 +11,67 @@ model_name: 'BestModel'
 
 # Training settings
 
+seed: 42
+
 im_size: [3, 256, 256]
 workers: 24
 batch_size: 17
 epochs: 100
 start_epoch: 0
-gpu_id: 0, 1, 2, 3, 4
-nodes: 1
-nr: 0
+
 learning_rate_D: 0.0001
-learning_rate_G: 0.0001
+learning_rate_G: 0.0002
 lr_interval_D: 25
 lr_interval_G: 25
 lr_coef_G: 0.5
 lr_coef_D: 0.5
-adam_betas_D: [0.9 , 0.9]
-adam_betas_G: [0.9 , 0.999]
+adam_betas_D: [0.8 , 0.9]
+adam_betas_G: [0.8 , 0.9]
 checkpoint_interval: 1
 sample_interval: 50
 warmup_batches: 1000
 debug: False
 freeze_epoch: None
 # 'checkpoints/checkpoints_BestModel/checkpoints_BestModel_big_bn/checkpoint.pth.tar'
-resume: 'checkpoints/checkpoints_BestModel/checkpoints_BestModel_big_bn_lr_D_0.0001/checkpoint.pth.tar'
-parallel: True
+resume: 'checkpoints/checkpoints_BestModel/checkpoints_BestModel_256_adv_0.03/model_best.pth.tar'
 # adversarial mode: bce or l1
 adv_mode: 'bce'
 num_layers_fm: 5
 num_layers_vgg: 4
-train_interval_D: 1
+train_interval_D: 2
 init_weights: 'kaiming'
 data_normalization: 'tanh'
 vgg_path: 'downloaded_models/vgg16-397923af.pth'
 
+# when adjusting parameters reduce train dataset size and image size
+search_params: False
+reduce_train_data: 0.3
+
+#Parallel
+gpu_id: 0
+parallel: False 
+nodes: 1
+nr: 0
+MASTER_ADDR: 10.241.24.185
+MASTER_PORT: 6606
+
 # Loss coefecients
 
-# 20
+# 13, 20
 l1_coef: 13
-# 1
+# 0.5, 1
 freq_coef: 0.5
-content_coef: 1
-style_coef: 5000
-# 0.03
-adv_G_coef: 0.1
-# 1
+content_coef: 2
+# 5000
+style_coef: 4000
+# 0.1, 0.03
+adv_G_coef: 0.03
+# 2, 1
 fm_coef: 2
 
 # Logging
 
-model_log_name: 'BestModel_big_bn_lr_D_0.0001'
+model_log_name: 'BestModel_256_adv_0.03'
 checkpoint_dir: 'checkpoints/checkpoints_BestModel/checkpoints_' # is followed by model_log_name
 eval_dir: 'eval_epochs'
 logger: 'logger.txt'

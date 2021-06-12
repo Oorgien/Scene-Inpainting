@@ -18,7 +18,7 @@ class CelebaHQDataset(BaseImageDataset):
     def __init__(self, im_size, mode, image_dir, image_list, normalization="tanh", expand=1):
         super(CelebaHQDataset, self).__init__(im_size, normalization)
         self.image_dir = image_dir
-        self.image_list = image_list * expand
+        self.image_list = image_list * expand if expand > 1 else image_list[:round(len(image_list) * expand)]
         self.mode = mode
 
     def __len__(self):
@@ -35,7 +35,8 @@ class CelebaHQDataset(BaseImageDataset):
                                          std=self.std)
         data_transforms = {
             'train': transforms.Compose([
-                # transforms.RandomResizedCrop(self.im_size),
+                # transforms.RandomResizedCrop(size=self.im_size, scale=(0.5, 1.0)),
+                transforms.Resize(self.im_size),
                 transforms.RandomHorizontalFlip(p=0.5),
                 transforms.ToTensor(),
                 normalize,

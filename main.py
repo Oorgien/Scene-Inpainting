@@ -10,6 +10,7 @@ import torch.multiprocessing as mp
 import torch.nn as nn
 import torch.optim
 import torch.utils.data
+import random
 from apex import amp
 from apex.parallel import DistributedDataParallel as DDP
 
@@ -23,6 +24,9 @@ from utils import get_config
 
 
 def main(args):
+    if args.seed is not None:
+        random.seed(args.seed)
+        torch.manual_seed(args.seed)
 
     args.logger_fname = os.path.join(args.checkpoint_dir + args.model_log_name, args.logger)
     args.eval_dir = os.path.join(args.eval_dir, args.eval_dir + "_" + args.model_name)
@@ -42,8 +46,8 @@ def main(args):
         args.gpu_ids = list(map(int, args.gpu_id.split(',')))
         args.gpus = len(args.gpu_ids)
         args.world_size = args.gpus * args.nodes
-    os.environ['MASTER_ADDR'] = 'localhost'  # 10.241.24.185
-    os.environ['MASTER_PORT'] = '8888'
+    os.environ['MASTER_ADDR'] = str(args.MASTER_ADDR) if args.MASTER_ADDR is not None else 'localhost'  # 10.241.24.185
+    os.environ['MASTER_PORT'] = str(args.MASTER_PORT) if args.MASTER_PORT is not None else '8888'
 
     fn = None
 
